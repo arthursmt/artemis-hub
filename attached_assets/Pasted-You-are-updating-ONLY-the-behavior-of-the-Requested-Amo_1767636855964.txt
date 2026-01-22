@@ -1,0 +1,94 @@
+You are updating ONLY the behavior of the **Requested Amount ($)** field on the New Proposal screen of Artemis Hunting MVP.
+
+The previous instructions for this field should be overridden by the behavior described below.
+
+---
+
+## 1. Currency input should format as the user types
+
+We want the classic “currency as cents” behavior:
+
+- The user types **digits only**.
+- Internally we treat the input as cents and format it as dollars on every keystroke.
+
+Example (user types sequentially: `5`, `55`, `555`, `5555`, `55555`, `555555`):
+
+- After `5`      → `$0.05`
+- After `55`     → `$0.55`
+- After `555`    → `$5.55`
+- After `5555`   → `$55.55`
+- After `55555`  → `$555.55`
+- After `555555` → `$5,555.55`
+
+Implementation guidance:
+
+- On each `onChange`:
+  1. Strip all non-digit characters from the raw input string.
+  2. Interpret the resulting digits as **cents** (integer).
+     - If there are no digits, treat as 0.
+  3. Compute the numeric value in dollars: `amountInDollars = cents / 100`.
+  4. Store this numeric value in component state for validation (e.g. a number).
+  5. Format `amountInDollars` as a US currency string and set that as the input value, e.g. `$5,555.55`.
+
+- The caret can simply move to the end of the input after each formatting; that is acceptable for this tablet-first use case.
+
+- The user should be able to delete/backspace naturally: when deleting digits, the numeric value should shrink accordingly and the formatted string should update.
+
+---
+
+## 2. Validate max amount (50,000) when the user finishes typing (on blur)
+
+The maximum allowed loan amount is **$50,000.00**.
+
+We want the max check to occur **as soon as the user finishes typing and leaves the field** — not only when they click “Create Proposal”.
+
+Behavior:
+
+- On `onBlur` of the Requested Amount field:
+  1. Use the internal numeric value (in dollars) you are storing in state.
+  2. If the value is:
+     - `<= 0` or not a number → treat as invalid (required) and show the existing “required” style/message.
+     - `> 50,000` → show a specific error for max amount (see below).
+     - Between `0` and `50,000` inclusive → the field is valid, clear any previous error for this field.
+
+- Error message for max amount:
+  - Show a clear message directly under the field, for example:
+    - `Maximum loan amount is $50,000.00`
+  - Visually mark the field as invalid (red border, red helper text) using the same style as other validation errors.
+
+- As soon as the user edits the value again and it becomes `<= 50,000`:
+  - Clear the max-amount error,
+  - Keep the formatting behavior described in section 1.
+
+---
+
+## 3. Integrate with form submission
+
+- When the user clicks **Create Proposal**, the form should still run full validation on all members and fields, including Requested Amount.
+
+- For Requested Amount:
+  - Use the **same numeric value** and rules from above:
+    - required,
+    - > 0,
+    - <= 50,000.
+  - If the value is invalid (empty, zero, or > 50,000), block submission and keep / show the appropriate error message under the field.
+
+- If the value was already validated on blur and is valid, submission should not add any new error; it should simply reuse the existing valid state.
+
+---
+
+## 4. Summary
+
+- Requested Amount behaves as a **live currency field** where:
+  - user types digits only,
+  - every keystroke updates the formatted value (`cents → dollars`),
+  - examples: `5` → `$0.05`, `555555` → `$5,555.55`.
+
+- On **blur**, the app:
+  - validates the numeric value,
+  - shows a clear error if the amount is greater than `$50,000.00`,
+  - clears the error automatically when the user corrects it.
+
+- On **Create Proposal**, the form re-checks the same rules and will not proceed if this field is invalid.
+
+Do not change any other fields or behavior on this screen; only adjust the Requested Amount input and its validation as described above.

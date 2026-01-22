@@ -1,0 +1,69 @@
+You are fixing the behavior of the **Requested Amount ($)** field on the New Proposal screen.
+
+Right now:
+- When the user types a large value (e.g. 5000000), an extra formatted value (e.g. `$50,000.00`) appears BELOW the input.
+- The behavior is confusing and looks like the value is being clamped to 50,000.
+
+We want to change this behavior as follows:
+
+---
+
+## 1. Remove the secondary formatted value under the input
+
+- Remove any extra label or text under the Requested Amount field that shows a formatted value (such as `$50,000.00`).
+- The **only place** where the amount should appear is inside the input itself.
+
+---
+
+## 2. Format inside the input, not in a separate line
+
+- The formatting to currency must happen **in the input field itself**, not as a separate label.
+- Behavior:
+
+  - The user can type numbers freely (including zeros and more than 5 digits).
+  - The internal numeric value should be parsed from the digits.
+  - When it is appropriate to format (for example, on `blur` or after the user stops typing), display the formatted value in the input as US currency:
+    - e.g. `50000` → `$50,000.00`
+    - `2500` → `$2,500.00`
+
+- IMPORTANT: Do **not** clamp or automatically change the numeric value to 50,000 when the user types more than that. Keep the actual value the user typed and handle the limit with a validation error (see next section).
+
+Make sure zeros are accepted normally (the user must be able to type values like `50000` without the input jumping to `0.05` or similar).
+
+---
+
+## 3. Enforce the 50,000 max with an error message, not by changing the value
+
+- The **maximum allowed loan amount is 50,000**.
+- If the numeric value entered by the user is **greater than 50,000**:
+
+  - Keep the user’s value in the input (formatted as currency).
+  - Show a validation error message directly under the input, for example:
+    - `Maximum loan amount is $50,000.00`
+  - Mark the field as invalid (red border / red helper text as done with other errors).
+  - When this error is present, the user **cannot proceed** (the Create Proposal button should not advance to the next screen).
+
+- When the user corrects the value so that it is:
+  - greater than 0, and
+  - less than or equal to 50,000,
+
+  then:
+
+  - **clear the error message**,
+  - restore the normal field styling,
+  - allow the form to be submitted.
+
+- The field is still required:
+  - If empty or 0, keep using the existing “required” error logic.
+
+---
+
+## 4. Summary
+
+- No more extra formatted “shadow value” below the input.
+- The amount is shown only **inside the input**, formatted as currency.
+- Values over 50,000 are allowed to be typed but trigger a clear error message:
+  - `Maximum loan amount is $50,000.00`
+- The error disappears automatically when the value is corrected, and the user cannot advance while the error is active.
+
+Do not change any other fields or validation rules on this screen. Only adjust the Requested Amount field behavior and its validation/error handling as specified above.

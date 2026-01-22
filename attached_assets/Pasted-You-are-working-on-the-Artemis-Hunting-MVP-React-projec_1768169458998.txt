@@ -1,0 +1,267 @@
+You are working on the Artemis Hunting MVP React project.
+
+We now need to implement TWO main things in the Product Configuration flow:
+
+1) Persist the Loan Details form (CRUD-like behavior)
+2) Add correct logic and UI for the Borrower's Insurance (Credit Life = 2% of principal)
+
+All changes below must be done in a type-safe way (TypeScript), and only in the relevant files. Do NOT touch unrelated screens or routes.
+
+--------------------------------------------------------------------
+A. PERSIST LOAN DETAILS IN THE PROPOSAL STORE
+--------------------------------------------------------------------
+
+1. Open the file:
+   client/src/lib/proposalStore.ts
+
+2. Locate the type that represents the proposal data. It might be called `ProposalData`, or something similar that is used in `useProposalStore`.
+
+3. If there is already a `LoanDetails` type defined anywhere, reuse it. If not, define it in this file and export it:
+
+   export type LoanDetails = {
+     loanValue: string;            // formatted currency string, e.g. "$5,000.00"
+     loanType: string;             // e.g. "Working capital", "Investment", "Other"
+     interestRateApr: number;      // e.g. 14
+     installments: number | null;  // from 4 to 12
+     firstPaymentDate: string;     // ISO "YYYY-MM-DD"
+     gracePeriodDays: number;      // computed from today to first payment
+     loanGoal: string;             // selected goal, e.g. "Equipment purchase"
+     otherGoal: string;            // free text, optional
+     borrowersInsurance: boolean;  // true = selected
+     optionalInsurance1: string;   // e.g. "None", "Work loss insurance", etc.
+     optionalInsurance2: string;
+     optionalInsurance3: string;
+   };
+
+4. Extend the proposal data type to include the stored loan details per member:
+
+   - Add a field like:
+     loanDetailsByMember?: Record<number, LoanDetails>;
+
+   So the final shape will have something like:
+
+   export type ProposalData = {
+     group: Group;
+     // ... any other fields that already exist ...
+     loanDetailsByMember?: Record<number, LoanDetails>;
+   };
+
+5. Make sure that `useProposalStore` initializes this field to `{}` or `undefined` when creating a new proposal, and that the TypeScript compiler is satisfied. Do NOT break existing behavior.
+
+--------------------------------------------------------------------
+B. LOAD/SAVE LOAN DETAILS IN ProductConfigScreen
+--------------------------------------------------------------------
+
+1. Open:
+   client/src/pages/ProductConfigScreen.tsx
+
+2. At the top, make sure you import the `LoanDetails` type from the store:
+
+   import { useProposalStore, Group, Member, LoanDetails } from "@/lib/proposalStore";
+
+3. Inside the `ProductConfigScreen` component, we already have local state for the group and the active member. Make sure we also have:
+
+   const [loanDetailsByMember, setLoanDetailsByMember] = useState<Record<number, LoanDetails>>({});
+
+   If a similar state already exists, reuse it instead of creating a new one.
+
+4. Reuse the existing helper that creates empty loan details (if there is one). If not, define it inside this file:
+
+   const createEmptyLoanDetails = (): LoanDetails => ({
+     loanValue: "",
+     loanType: "Working capital",
+     interestRateApr: 14,
+     installments: null,
+     firstPaymentDate: "",
+     gracePeriodDays: 0,
+     loanGoal: "",
+     otherGoal: "",
+     borrowersInsurance: true,      // default YES
+     optionalInsurance1: "None",
+     optionalInsurance2: "None",
+     optionalInsurance3: "None",
+   });
+
+5. In the `useEffect` that currently loads the proposal (where we call `getProposalById` and set `group` and `activeMemberId`):
+
+   - After setting `group`, also load any existing saved loan details:
+
+     if (proposal.data.loanDetailsByMember) {
+       setLoanDetailsByMember(proposal.data.loanDetailsByMember);
+     } else {
+       setLoanDetailsByMember({});
+     }
+
+   - When creating default loan details for a member whose data does not yet exist, initialize the `loanValue` field using that member's requestedAmount (the same value used in the initial prospecting screen), but formatted as US currency (e.g. "$5,000.00").
+
+6. Ensure that the `handleLoanFieldChange` function (or equivalent) updates the `loanDetailsByMember` state for the **active member ID**. It should look roughly like:
+
+   const handleLoanFieldChange = (field: keyof LoanDetails, value: string | number | boolean) => {
+     if (!group) return;
+     const memberId = activeMemberId ?? group.members[0]?.id;
+     if (!memberId) return;
+
+     setLoanDetailsByMember(prev => {
+       const base = prev[memberId] ?? createEmptyLoanDetails();
+       return {
+         ...prev,
+         [memberId]: {
+           ...base,
+           [field]: value,
+         },
+       };
+     });
+   };
+
+   Make sure the field types are respected (`number` vs `string` vs `boolean`). Convert as needed when calling this function.
+
+7. Implement a helper function inside the component to persist the current in-memory loan details to the proposal store:
+
+   const persistLoanDetails = () => {
+     if (!proposalId) return;
+     updateProposal(proposalId, prev => ({
+       ...prev,
+       data: {
+         ...prev.data,
+         loanDetailsByMember,
+       },
+     }));
+   };
+
+8. Update the existing `handleSaveExit` so that it saves the loan details before navigating home:
+
+   const handleSaveExit = () => {
+     persistLoanDetails();
+     toast({
+       title: "Proposal Saved",
+       description: "You can resume this proposal later from the dashboard.",
+     });
+     setLocation("/");
+   };
+
+9. For the "Back to Home" button at the bottom of the page:
+
+   - Replace any `<Link href="/">` wrapping this button with an `onClick` handler that shows a confirmation dialog and then saves.
+   - Implement:
+
+     const handleBackToHome = () => {
+       const confirmed = window.confirm("Do you want to go back to the dashboard? Your latest changes will be saved.");
+       if (!confirmed) return;
+       persistLoanDetails();
+       setLocation("/");
+     };
+
+   - Wire this function to the button:
+
+     <Button variant="outline" className="h-12 px-8" onClick={handleBackToHome}>
+       {/* icon */} Back to Home
+     </Button>
+
+10. With these changes, any time the user clicks "Save & Exit" or "Back to Home", the loan details for all members will be saved into `proposal.data.loanDetailsByMember`, and when they reopen the proposal via "On Going" → "Keep filling", the form should be pre-populated with the saved values.
+
+--------------------------------------------------------------------
+C. BORROWER'S INSURANCE LOGIC (2% OF LOAN VALUE)
+--------------------------------------------------------------------
+
+1. In `ProductConfigScreen.tsx`, find where the current active member's loan details are derived from state, something like:
+
+   const activeMemberId = ...
+   const activeLoanDetails = loanDetailsByMember[activeMemberId] ?? createEmptyLoanDetails();
+
+   Make sure we always use `activeLoanDetails` as the single source of truth for the form.
+
+2. Reuse the same parsing helpers used for the currency field (loan value):
+
+   - `parseCurrency(value: string): number` → converts a "$X,XXX.XX" string into a numeric amount.
+   - `formatCurrency(amount: number): string` → formats a number back into US currency.
+
+   If these helpers do not exist yet, implement them in this file exactly like they are implemented for the Requested Amount input on the New Proposal screen.
+
+3. Compute inside the component (below the state declarations):
+
+   const activeLoanDetails = ... // as above
+   const principalAmount = parseCurrency(activeLoanDetails.loanValue || "");
+   const hasInstallments = typeof activeLoanDetails.installments === "number" && activeLoanDetails.installments > 0;
+
+   // Life insurance (credit life) total premium: 2% of principal, no interest
+   const lifeInsuranceTotal = activeLoanDetails.borrowersInsurance
+     ? principalAmount * 0.02
+     : 0;
+
+   // Monthly share of life insurance, spread over the installments
+   const lifeInsuranceMonthly = activeLoanDetails.borrowersInsurance && hasInstallments
+     ? lifeInsuranceTotal / (activeLoanDetails.installments as number)
+     : 0;
+
+4. In the UI section for "Borrower's Insurance (Credit Life)":
+
+   - Keep it as a boolean (Yes / No).
+   - Under the radio buttons, add a small helper text explaining the product and its total cost:
+
+     "Credit life insurance costs 2% of the loan amount (one-time premium, no interest). Total premium: $X,XXX.XX."
+
+   - The total premium shown must be the formatted value of `lifeInsuranceTotal`:
+
+     {formatCurrency(lifeInsuranceTotal)}
+
+   - This helper text should update dynamically when the loan value changes.
+
+5. In the summary card at the bottom of the screen (where you already show the base monthly loan installment and optional insurances):
+
+   - Make sure you already compute the pure loan installment using the 14% APR amortization formula:
+
+     const annualRate = 0.14;
+     const monthlyRate = annualRate / 12;
+     const n = activeLoanDetails.installments ?? 0;
+
+     const monthlyLoanPayment =
+       principalAmount > 0 && n > 0
+         ? (principalAmount * monthlyRate * Math.pow(1 + monthlyRate, n)) /
+           (Math.pow(1 + monthlyRate, n) - 1)
+         : 0;
+
+   - Keep this formula (or correct it if needed), and then include the life insurance monthly share into the total:
+
+     const totalMonthlyInsurances =
+       lifeInsuranceMonthly +
+       optionalInsuranceMonthly1 +
+       optionalInsuranceMonthly2 +
+       optionalInsuranceMonthly3;
+
+     const totalMonthlyPayment = monthlyLoanPayment + totalMonthlyInsurances;
+
+   - Ensure the optional insurance monthly amounts are still:
+       - Work Loss Insurance: 20 USD / month
+       - Health Premium:      40 USD / month
+       - Income Insurance:    30 USD / month
+
+6. In the summary card UI, add a specific row for life insurance:
+
+   - A line like:
+
+     "Credit life insurance (monthly share)"    $X.XX
+
+   - And ensure the "Total monthly payment" line uses `totalMonthlyPayment`, which already includes this life insurance monthly share.
+
+7. Also, somewhere near the top of the screen (e.g. in the dark group banner where you already show GROUP ID and LEADER), ensure the base credit rate is clearly displayed as:
+
+   "14% APR (fixed)"
+
+   This is already partially implemented; just verify it is visible and consistent with the calculation used for `monthlyLoanPayment`.
+
+--------------------------------------------------------------------
+D. FINAL CHECKS
+--------------------------------------------------------------------
+
+1. After implementing everything:
+
+   - When the user edits any field in the Loan Details tab and clicks "Save & Exit", the proposal should reappear in the "On Going" list with updated data, and re-opening it via "Keep filling" should show the previous values in all fields.
+   - When the user clicks "Back to Home", show a `window.confirm` dialog:
+       "Do you want to leave this screen? Your latest changes will be saved."
+     If they confirm, save via `persistLoanDetails()` and navigate home. If they cancel, stay on the form.
+
+2. Make sure the UI remains aligned and visually clean, with the Loan Details fields, insurance section, and summary card keeping the same style and spacing used in previous iterations of this screen.
+
+3. Do not modify other flows (new proposal creation, validation, ongoing list) beyond what is necessary to support saving/loading `loanDetailsByMember`.
+
+When you are done, the Product Configuration screen must behave like a real CRUD form: edits are persisted per proposal and per member, the life insurance logic is correct (2% of principal, shown in full and per month), and the monthly total summary reflects loan + all selected insurances.

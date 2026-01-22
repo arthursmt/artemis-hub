@@ -1,0 +1,215 @@
+You are working on the Artemis Hunting MVP.
+
+There are two tasks:
+
+1) Improve the layout of the Actions column on the "On Going Proposals" screen.
+2) Implement the first form tab (Loan Details) on the Product Configuration screen.
+
+Please follow the instructions carefully and keep all UI texts in English.
+
+---
+
+## 1) On Going Proposals – better Actions layout
+
+Current issue:
+- The Actions column on `/ongoing` feels cramped: "Keep filling", "View details" and "Delete" are too close to each other and hard to tap, even though there is plenty of horizontal space.
+
+Requirements:
+
+1. Keep the **table structure and columns** as they are:
+   - Client Name, Amount, Date Created, Status, Actions.
+
+2. Redesign the **Actions** cell for each row as a clearer, spaced layout:
+   - Use a vertical layout (flex column) inside the Actions cell:
+     - **Top element**: a full-width primary button `Keep filling` (same style as now).
+     - **Bottom row**: two text-style actions with enough spacing:
+       - Left-aligned: `View details`
+       - Right-aligned: `Delete` in a danger color (red) to signal destructive action.
+
+   Visually, it should look like:
+   - First line: big blue `Keep filling` button spanning most of the width of the cell.
+   - Second line: `View details` on the left, `Delete` on the right, with clear padding and line height so both are easy to tap.
+
+3. Do **not** change the existing behaviors:
+   - `Keep filling` must still reopen Product Configuration for that proposal.
+   - `View details` must still navigate to the proposal details view.
+   - `Delete` must still show a confirmation and, if confirmed, delete the proposal from the local proposals store and update the list.
+
+4. Make sure the new layout:
+   - Works well on tablet-sized screens.
+   - Looks consistent with the current design system (same fonts, colors, hover states).
+
+---
+
+## 2) Product Configuration – first tab: Loan Details
+
+You already have a Product Configuration screen at `/product-config` with:
+- A header.
+- Navigation back to validation.
+- A placeholder area where forms will be configured.
+- The concept of proposals and members already stored in a Proposals store.
+
+Now we need to turn this into a **multi-member, multi-step form**, and implement the **first step (Loan Details)**.
+
+### 2.1. Member navigation
+
+At the top of the form area:
+
+- Show a horizontal tab bar for members, something like:
+  - `Member 1 | Member 2 | Member 3 | ...`
+- The first member should be selected by default.
+- When the user clicks another member tab:
+  - Switch the form to show that member’s data.
+  - Keep all previously entered values in memory using the same Proposals store.
+
+You can reuse the member concept from previous steps (the group created in New Proposal and validated in the Credit Validation screen).
+
+### 2.2. Form step navigation (sub-tabs)
+
+Below the member tabs, add a **second row of sub-tabs** for the form steps:
+
+- `Loan Details` (first tab – active now)
+- `Personal Data`
+- `Business Data`
+- `Financial Profile / P&L`
+
+For now:
+- Implement only the **Loan Details** tab content.
+- The other tabs can be shown as disabled or non-clickable placeholders.
+
+### 2.3. Layout for Loan Details
+
+Inside the Loan Details tab:
+
+- Use a **card-style form** similar to other cards in the app.
+- Use a clean two-column layout when there is enough space, with generous vertical spacing between rows so the screen does not feel cramped.
+- Add a section title: `Loan structure`.
+
+Fields to implement (all in English):
+
+1. **Loan Value** (mandatory)
+   - Type: numeric, with currency formatting.
+   - Behavior:
+     - Pre-fill with the `Requested Amount` entered earlier for this member.
+     - Reuse the same currency mask behavior as the previous amount field:
+       - While the user types, format as dollars (e.g. typing `555555` becomes `$5,555.55`).
+     - Keep the existing maximum loan rule (50,000):
+       - If the user enters a value greater than 50,000, show an inline error like:
+         `Maximum loan value is $50,000.00`
+       - Do not let the user proceed to the next step while this error is active.
+
+2. **Loan Type** (mandatory)
+   - Type: text stored, but implemented as a dropdown for better UX.
+   - Label: `Loan type`
+   - Options (for now, fixed list):
+     - `Working capital`
+     - `Investment`
+     - `Other`
+   - If `Other` is selected, the `Other goal` field (see below) becomes more relevant.
+
+3. **Interest Rate** (mandatory)
+   - Type: numeric.
+   - Label: `Interest rate (%)`
+   - Behavior:
+     - Accept only numbers and decimal separator.
+     - Show inline validation if empty or not a valid number.
+
+4. **Number of Installments** (mandatory)
+   - Type: numeric.
+   - Label: `Number of installments`
+   - Behavior:
+     - Accept only integers.
+     - For now, enforce a range between 4 and 12:
+       - If outside that range, show inline error:
+         `Number of installments must be between 4 and 12`
+
+5. **First Payment Date** (mandatory)
+   - Type: date.
+   - Label: `First payment date`
+   - Behavior:
+     - Use a date picker.
+     - Default value:
+       - Based on the current date, calculate 60 days of grace.
+       - Then set the default first payment date to the first half of the following month (days 1–15).
+     - The user can adjust the date, but only to dates **on or after** this default.
+     - If the selected date is before the allowed minimum, show an inline error.
+
+6. **Grace Period** (mandatory)
+   - Type: numeric.
+   - Label: `Grace period (days)`
+   - Behavior:
+     - Default to `60`.
+     - Accept only integers.
+     - Show inline error if empty or less than 0.
+
+7. **Loan Goal** (mandatory)
+   - Type: text.
+   - Label: `Loan goal`
+   - Implementation:
+     - Use either a dropdown with common goals (e.g. `Inventory`, `Equipment`, `Working capital`, `Debt consolidation`, `Other`) or a text input.
+   - If you implement a dropdown and the user selects `Other`, they should be encouraged to fill `Other goal`.
+
+8. **Other Goal** (optional)
+   - Type: text.
+   - Label: `Other goal (optional)`
+   - Behavior:
+     - Optional field.
+     - If `Loan goal` is set to `Other`, you can visually hint that this field should be filled, but do not make it required.
+
+9. **Borrower's Insurance** (mandatory)
+   - Type: boolean.
+   - Label: `Borrower's insurance`
+   - Implementation:
+     - Use radio buttons (`Yes`, `No`) or a toggle switch.
+   - Show an inline error if no option is selected when the user tries to proceed.
+
+10. **Optional Insurance 1** (optional)
+    - Type: list.
+    - Label: `Optional insurance 1`
+    - Implementation:
+      - Dropdown with placeholder options like:
+        - `None`
+        - `Life coverage`
+        - `Disability coverage`
+        - `Job loss coverage`
+      - Default to `None`.
+
+11. **Optional Insurance 2** (optional)
+    - Same as Optional insurance 1.
+
+12. **Optional Insurance 3** (optional)
+    - Same as Optional insurance 1.
+
+### 2.4. Validation and persistence
+
+- All fields marked as mandatory must be validated when:
+  - The user clicks the **Next step** button on the Product Configuration screen.
+- Show inline error messages under each field that fails validation, with clear text like:
+  - `Loan value is required`
+  - `Interest rate is required`
+  - `First payment date is required`, etc.
+
+- Only allow progression to the next step (future tabs) when:
+  - All mandatory fields in *Loan Details* for the **current member** are valid.
+- All values entered in Loan Details must be stored in the existing **Proposals store**, under the corresponding proposal and member, so that:
+  - Switching between member tabs keeps the data.
+  - Returning from `/product-config` via "Keep filling" reloads all saved values.
+
+### 2.5. Navigation buttons
+
+- Keep the bottom navigation as:
+  - Left button: `Back to Home` (or `Back` if you already renamed it) – returns to the main Dashboard.
+  - Right button: `Next step` – validates Loan Details and, if valid, will later take the user to the next sub-tab (Personal Data). For now it can show a placeholder message or keep the user on the same screen, but the validation logic must be in place.
+
+---
+
+Summary:
+
+1. Improve the Actions column on `/ongoing` so that `Keep filling`, `View details`, and `Delete` are well spaced and easy to tap.
+2. Implement the `Loan Details` sub-tab of the Product Configuration screen:
+   - Member tabs at the top.
+   - Sub-tabs row with `Loan Details` active.
+   - All specified fields with validation, defaults, and persistence in the Proposals store.
+   - Respect previous behaviors (loan amount limit, navigation from validation, etc.).
+
+All labels and error messages must be in English and consistent with the current design language of the Artemis Hunting MVP.

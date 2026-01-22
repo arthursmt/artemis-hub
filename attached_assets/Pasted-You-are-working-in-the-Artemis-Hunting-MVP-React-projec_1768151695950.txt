@@ -1,0 +1,253 @@
+You are working in the Artemis Hunting MVP React project, in the file
+client/src/pages/ProductConfigScreen.tsx.
+Do not touch the header, the dark Group banner or the member tabs.
+You must only change the Loan Details logic and UI inside this screen.
+
+1. Loan value: default, formatting, range and step buttons
+
+Reuse the group and members already loaded in this component.
+
+When a proposal is loaded and when activeMemberId changes, set the default loan value for the form from the corresponding member’s requestedAmount.
+
+If you already have a helper / logic used in the “Requested Amount ($)” field in the New Proposal screen or in the validation flow (currency mask), reuse the same behaviour and formatting here.
+
+If there is no helper, implement the same pattern: user types only digits and the field is formatted as a US currency string like "$5,000.00".
+
+The loan value must:
+- accept cents/decimals, formatted as currency
+- not go below $500
+- not go above $50,000
+
+Inside this component, implement a utility to parse the loan value to a numeric amount:
+
+const parseCurrency = (value: string): number => {
+  // remove non-digits except dot, then parseFloat, return 0 if NaN
+};
+
+and another to format a number back to currency string in US format:
+
+const formatCurrency = (amount: number): string => {
+  // use Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
+};
+
+Update the Loan value field to:
+- use type="text" (not number, so we don’t show native up/down arrows)
+- on change, keep the same “digits only → currency format” behaviour used in New Proposal.
+
+Around this input, add four step buttons that adjust the value:
+
++ $500  
++ $1,000  
+- $500  
+- $1,000  
+
+Implementation detail:
+
+Create a helper:
+
+const adjustLoanValue = (delta: number) => {
+  const current = parseCurrency(loanDetails.loanValue || "0");
+  let next = current + delta;
+  if (next < 500) next = 500;
+  if (next > 50000) next = 50000;
+  setLoanDetails(prev => ({
+    ...prev,
+    loanValue: formatCurrency(next),
+  }));
+  setLoanErrors(prev => ({ ...prev, loanValue: undefined }));
+};
+
+Layout: inside the Loan value field container, wrap input + buttons with:
+
+<div className="flex flex-col md:flex-row gap-3 items-start">
+  <div className="flex-1">
+    {/* Loan value input goes here */}
+  </div>
+  <div className="grid grid-cols-2 gap-2">
+    <Button variant="outline" size="sm" onClick={() => adjustLoanValue(500)}>+ $500</Button>
+    <Button variant="outline" size="sm" onClick={() => adjustLoanValue(1000)}>+ $1,000</Button>
+    <Button variant="outline" size="sm" onClick={() => adjustLoanValue(-500)}>- $500</Button>
+    <Button variant="outline" size="sm" onClick={() => adjustLoanValue(-1000)}>- $1,000</Button>
+  </div>
+</div>
+
+Ensure the value never goes below 500 or above 50,000 when clicking the buttons.
+
+Validation in validateLoanDetails:
+
+Use parseCurrency(loanDetails.loanValue) to get the numeric amount.
+
+If the amount is < 500 or > 50000, set:
+
+errors.loanValue = "Loan value must be between $500 and $50,000";
+
+2. Interest rate: fixed, non-editable
+
+In createEmptyLoanDetails, set:
+
+interestRate: "14";
+
+In the UI, change the label to:
+
+"Interest rate (APR, % per year)"
+
+Make the Interest Rate input read-only (or disabled) so the user can’t type.
+
+3. Number of installments: select with options 4 to 12
+
+Change Number of installments to a <select> instead of a free numeric input, with options:
+
+4, 5, 6, 7, 8, 9, 10, 11, 12
+
+The value should still be required and validated as before, but now the user must choose one of these options.
+
+4. Loan type default
+
+In createEmptyLoanDetails, set:
+
+loanType: "working-capital";
+
+Make sure the <select> options use matching value strings:
+
+<option value="working-capital">Working capital</option>
+<option value="investment">Investment</option>
+<option value="other">Other</option>
+
+so “Working capital” is the default.
+
+5. First payment date: 60 days window and day-of-month rule
+
+Inside the component, compute today and max date:
+
+const today = new Date();
+const maxDate = new Date();
+maxDate.setDate(today.getDate() + 60);
+
+Add a helper to format dates for the input:
+
+const formatDateInput = (d: Date) => d.toISOString().slice(0, 10);
+
+On the First payment date input:
+- set type="date"
+- set min={formatDateInput(today)}
+- set max={formatDateInput(maxDate)}
+
+In validateLoanDetails, after checking required fields, add extra rules for firstPaymentDate:
+
+if (loanDetails.firstPaymentDate) {
+  const selected = new Date(loanDetails.firstPaymentDate + "T00:00:00");
+  const day = selected.getDate();
+  const diffMs = selected.getTime() - today.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0 || diffDays > 60 || day > 15) {
+    errors.firstPaymentDate =
+      "First payment date must be within 60 days from today and on or before the 15th of the month.";
+  }
+}
+
+Whenever loanDetails.firstPaymentDate changes and passes this validation, automatically compute the Grace Period:
+
+useEffect(() => {
+  if (!loanDetails.firstPaymentDate) return;
+  const selected = new Date(loanDetails.firstPaymentDate + "T00:00:00");
+  const diffMs = selected.getTime() - today.getTime();
+  const diffDays = Math.max(
+    0,
+    Math.round(diffMs / (1000 * 60 * 60 * 24))
+  );
+  setLoanDetails(prev => ({
+    ...prev,
+    gracePeriod: String(diffDays),
+  }));
+}, [loanDetails.firstPaymentDate]);
+
+Make the Grace period input read-only (user cannot edit it manually, it’s calculated from the dates).
+
+6. Borrower’s insurance default
+
+In createEmptyLoanDetails, set:
+
+borrowersInsurance: "yes";
+
+Keep the radio buttons as they are, but now "Yes" should be selected by default.
+
+7. Conditional fields: Other goal and optional insurances
+
+Other goal:
+
+Only render the “Other goal (optional)” field when loanDetails.loanGoal === "other".
+
+If the user changes loanGoal from "other" to another option, automatically clear otherGoal:
+
+if (field === "loanGoal" && value !== "other") {
+  setLoanDetails(prev => ({ ...prev, otherGoal: "" }));
+}
+
+Optional insurance 1/2/3:
+
+Default values in createEmptyLoanDetails must remain:
+
+optionalInsurance1: "None",
+optionalInsurance2: "None",
+optionalInsurance3: "None",
+
+Render Optional insurance 2 only when loanDetails.optionalInsurance1 !== "None".
+
+Render Optional insurance 3 only when loanDetails.optionalInsurance2 !== "None".
+
+If Optional insurance 1 is changed back to "None", automatically reset 2 and 3 to "None" and hide them:
+
+if (field === "optionalInsurance1" && value === "None") {
+  setLoanDetails(prev => ({
+    ...prev,
+    optionalInsurance1: "None",
+    optionalInsurance2: "None",
+    optionalInsurance3: "None",
+  }));
+}
+
+If Optional insurance 2 is changed back to "None", reset optionalInsurance3 to "None" and hide it:
+
+if (field === "optionalInsurance2" && value === "None") {
+  setLoanDetails(prev => ({
+    ...prev,
+    optionalInsurance2: "None",
+    optionalInsurance3: "None",
+  }));
+}
+
+8. Loan Details as a tab inside the member form
+
+Above the <Card> that contains the Loan Details form, add a sub-tab row to represent the internal steps for each member. For now, only “Loan Details” is active, and the others are disabled placeholders:
+
+<div className="mb-4 border-b border-slate-200 flex gap-4">
+  <button className="px-4 py-2 text-sm font-semibold border-b-2 border-primary text-primary">
+    Loan Details
+  </button>
+  <button className="px-4 py-2 text-sm text-slate-400 cursor-not-allowed">
+    Personal Data
+  </button>
+  <button className="px-4 py-2 text-sm text-slate-400 cursor-not-allowed">
+    Business Data
+  </button>
+  <button className="px-4 py-2 text-sm text-slate-400 cursor-not-allowed">
+    Financials (P&L)
+  </button>
+</div>
+
+Keep the current Loan Details card as the content for the active tab.
+
+9. Validation + Save & Exit
+
+Make sure validateLoanDetails() now:
+- checks all required fields (same as before, but with the new logic for loan value and first payment date),
+- uses the currency parsing and date rules described above.
+
+The behaviour of handleSaveExit must stay the same:
+- if validation fails, show a toast and stay on the page
+- if validation passes, show “Proposal Saved” toast and navigate back to "/".
+
+All labels and helper texts must remain in English. Keep the overall spacing and Tailwind styling consistent with the rest of the app.
+
+Do not change any other routes or screens. Only modify ProductConfigScreen.tsx as described.

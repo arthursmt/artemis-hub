@@ -1,0 +1,169 @@
+You are updating the **New Proposal** flow of the Artemis Hunting MVP React app.
+
+There are two steps now:
+
+1. New Proposal – member data entry (current screen, to be improved).
+2. Credit Validation – new screen, shown after successful validation of the form.
+
+Use the current layout and styling as the base and apply the following changes.
+
+---
+
+## 1. Fix the ID Document Type dropdown appearance
+
+On the New Proposal screen, the **ID Document Type** dropdown currently has a transparent dropdown menu which makes the options hard to read.
+
+Update the dropdown styling so that:
+
+- The dropdown **menu background is solid white** (or the app’s main card background color), not transparent.
+- The options have clear text color (dark on light) and sufficient contrast.
+- The menu has a subtle border and shadow, similar to other popover elements in the design.
+- Scrolling and hover states should remain consistent with the app’s existing style.
+
+Do not change the existing options in the list or their labels.
+
+---
+
+## 2. Split “Client Name” into three fields
+
+Replace the single **Client Name** field with three separate fields, grouped together in a way that keeps the layout clean and not too massive.
+
+Fields:
+
+1. `First Name` (required)
+2. `Middle Name (optional)` (this is the **only optional field** on this screen)
+3. `Last Name` (required)
+
+UI guidance:
+
+- Place these three fields in a logical layout:
+  - For example, two fields on the first row (First Name, Last Name) and Middle Name below,
+  - or three fields in a responsive grid that still looks good on a 10.1" tablet.
+- The label for the middle name must clearly indicate that it is optional, e.g. `Middle Name (optional)`.
+
+Validation rules for all member name fields:
+
+- **First Name** and **Last Name** are required.
+- They accept **only letters and spaces**:
+  - No numbers, no special characters.
+- They must **not start with spaces**:
+  - The first character must be a letter.
+- Middle Name follows the same character rules (letters and spaces only) but is optional.
+
+You can implement this with simple input validation (e.g. regex) and show inline error messages under the invalid fields.
+
+---
+
+## 3. Requested Amount ($) – numeric only, currency mask, and limit
+
+For each member, the **Requested Amount ($)** field must behave as follows:
+
+- Input should accept **only numeric characters** from the user (0–9).
+- On the front end, the value should be displayed with a **currency mask** in US dollars:
+  - Example: user types `1000000` → the field shows `$ 1,000,000.00`.
+- The **maximum allowed value is 50,000**:
+  - If the user types a value greater than 50000, the field should:
+    - either prevent the value (clamp it) or
+    - show a validation error and block submission.
+- The field is required and must be **greater than 0**.
+
+You can use a currency formatting helper or library if already used in the project, or implement a simple formatter.
+
+---
+
+## 4. Required fields and validation per member
+
+On this New Proposal screen, **all fields are required for each member**, except `Middle Name`.
+
+For each member tab, the required fields are:
+
+- First Name
+- Last Name
+- Requested Amount ($)
+- ID Document Type
+- Document Number
+
+Validation rules:
+
+- All required fields must be filled and valid before advancing to the next step.
+- The **ID Document Type** field must only accept values from the dropdown options (no free text).
+- The **Document Number** field:
+  - is required,
+  - is a free text field that can accept any characters (since document formats vary widely),
+  - no specific formatting rules are enforced at this stage.
+
+When the user clicks **Create Proposal**:
+
+- Validate **every member** that exists in the group:
+  - Each member must have all required fields filled and valid.
+- If any member has validation errors:
+  - Do **not** proceed to the next screen.
+  - Show inline error messages for the invalid fields (for example, under the inputs or as red helper text).
+  - Optionally scroll to the first invalid member/field.
+
+Only when all members pass validation should the flow advance to the Credit Validation screen.
+
+---
+
+## 5. New step: Credit Validation screen
+
+After a successful click on **Create Proposal** on the New Proposal screen:
+
+- Instead of immediately “finishing” the flow, navigate to a new screen called **Credit Validation**.
+
+### 5.1. Routing / state
+
+- You can manage steps with a simple React state like `currentStep = "new_proposal" | "credit_validation"`, or,
+- If a router is already used, you can navigate to a new route (e.g. `/credit-validation`).
+
+The important part is:
+- **Step 1:** New Proposal (member data input).
+- **Step 2:** Credit Validation (reviewing internal/external checks).
+
+### 5.2. Credit Validation screen layout
+
+Create a new screen component, e.g. `CreditValidationScreen`, with:
+
+- Title: `Credit Validation`
+- Subtitle: something like `Reviewing internal and external rules before approving this prospect as a client.`
+
+Content:
+
+- A **summary list of all members** included in the proposal:
+  - For each member, show:
+    - Full name (First + Middle + Last, skipping Middle if empty),
+    - Requested Amount (formatted as currency),
+    - ID Document Type,
+    - Document Number.
+
+- Below or next to each member, show placeholder sections representing the checks being done, for example:
+  - `Credit bureau checks`
+  - `AML / anti-money-laundering screening`
+  - `Internal blacklist / risk criteria`
+
+For now, it is acceptable that these checks are **static or simulated**, e.g.:
+
+- Show each as a list item with a status icon (`Pending`, `Passed`, `Failed`) or just `Pending` placeholders.
+- The goal is to represent **that this step exists in the flow**, even if no real external integration is implemented yet.
+
+Add a simple **“Back”** action (to return to the New Proposal step) and optionally a **“Continue” / “Approve”** button for future steps (e.g. product configuration, contract signature) – this can be a placeholder for now.
+
+---
+
+## 6. Behavior recap
+
+- New Proposal screen:
+  - Uses member tabs (Member 1, Member 2, etc.) as already implemented.
+  - Has split name fields (First, Middle optional, Last).
+  - Validates names (letters and spaces only, no leading spaces).
+  - Validates Requested Amount as numeric, currency-masked, and <= 50,000.
+  - Validates ID Document Type as a selected option from the dropdown.
+  - Requires Document Number with no format restrictions.
+  - All members must be valid to proceed.
+
+- Create Proposal button:
+  - Runs validation on **all members**.
+  - If validation passes, sets the appropriate state and navigates to the **Credit Validation** screen.
+  - If validation fails, stays on the New Proposal screen and shows errors.
+
+Please implement these changes in the existing codebase, keeping styling and layout consistent with the current Artemis Hunting MVP design and ensuring the form remains clean and usable on a 10.1" Samsung tablet.

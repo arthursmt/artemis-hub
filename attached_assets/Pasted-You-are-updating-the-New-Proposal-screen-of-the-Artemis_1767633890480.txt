@@ -1,0 +1,137 @@
+You are updating the **New Proposal** screen of the Artemis Hunting MVP React app.
+
+Use the current layout as the base (title, subtitle, form card, buttons).  
+Do NOT remove the existing "Client Name" and "Requested Amount ($)" fields or change the general structure/styling of the form card.  
+Only extend it with the following features.
+
+---
+
+## 1. Add "Proposal Type" (Group vs Individual)
+
+At the top of the form, just above the fields for client information, add a **"Proposal Type"** control:
+
+- Label: `Proposal Type`
+- Options:
+  - `Group`
+  - `Individual`
+
+Implementation guidance:
+
+- Use a segmented control or radio buttons styled horizontally (for example, two pills side by side).
+- **Default value** must be `Group`.
+- When `Individual` is selected:
+  - The form behaves as a single-client proposal.
+- When `Group` is selected:
+  - The form supports multiple members (see section 2 below).
+
+Keep the layout tablet-friendly and consistent with the current visual style.
+
+---
+
+## 2. Support multiple group members (tabs + “+” button)
+
+When **Proposal Type = Group**, the agent must be able to add multiple members to the same proposal.
+
+### 2.1. Member tabs
+
+Just above the input fields, add a **row of member tabs**, for example:
+
+- `Member 1` | `Member 2` | `Member 3` | `[ + ]`
+
+Requirements:
+
+- Start with a single member by default:
+  - Only `Member 1` tab is visible (selected).
+- At the end of the tab row, add a small **“+” tab/button**:
+  - Clicking `+` creates a new member and a new tab:
+    - `Member 2`, `Member 3`, etc.
+  - The new tab becomes the active one and shows empty fields for that member.
+
+Each tab should visually indicate which member is currently active (e.g. highlighted background or underline).
+
+### 2.2. Member fields
+
+For each member, inside the form card, the fields should be:
+
+1. **Client Name** (use the existing field)
+   - The label and placeholder can stay as they are.
+   - Internally, this should be stored per member (e.g. `member.name`).
+
+2. **Requested Amount ($)** (keep as it is)
+   - Also stored per member.
+
+3. **ID Document Type** (new field – dropdown)
+   - Label: `ID Document Type`
+   - Input type: select / dropdown.
+   - Options (at least the following):
+     - `Social Security Number (SSN)`
+     - `Individual Taxpayer Identification Number (ITIN)`
+     - `US Driver’s License / State ID`
+     - `Passport`
+     - `Foreign Government ID` (for foreign national IDs or consular IDs)
+   - You can define these options in a small constant array in the component or in a separate config file.
+
+4. **ID Document Number** (new field – text input)
+   - Label: `Document Number`
+   - Simple text input where the agent types the chosen document’s number.
+
+All these fields must be **per member**. Changing data in `Member 2` must not affect `Member 1`, etc.
+
+### 2.3. Removing a member
+
+The agent must be able to **remove** members in a group proposal.
+
+- Add a small remove/delete control on each member tab, for example:
+  - a small "x" icon or trash icon on the tab (except maybe the first member).
+- When the user clicks this remove icon:
+  - Show a **confirmation dialog**, e.g.:
+
+    ```js
+    window.confirm("Are you sure you want to remove this member from the group?");
+    ```
+
+  - Only remove the member if the user confirms.
+- Do **not** allow deleting the last remaining member:
+  - There must always be at least one member in the group.
+  - If the user tries to delete the only member, show a message or simply block the action.
+
+When the currently selected member is removed, switch the view to a remaining member (e.g. the previous one or the first).
+
+### 2.4. Switching between Group and Individual
+
+- When **switching from Group to Individual**:
+  - You may keep only the **first member** data as the single client for the proposal.
+  - Hide the member tabs and the "+" button.
+- When **switching from Individual back to Group**:
+  - You can start again with one member (Member 1) and allow adding more via "+".
+  - For this first version, it is acceptable if previous extra members are not preserved when toggling types.
+
+---
+
+## 3. Maintain existing layout and buttons
+
+- Keep the **title** (`New Proposal`) and subtitle (`Originate a new credit application.`) exactly as they are.
+- Keep the main form card styling (shadow, padding, rounded corners).
+- Keep the **Cancel** and **Create Proposal** buttons with their current styling and positions.
+- The `Create Proposal` button should eventually submit all member data (for now, it is fine if it just logs the payload to the console or prepares an object containing proposal type and members).
+
+---
+
+## 4. Suggested data structure (for internal state)
+
+You can manage the form state with React hooks.  
+For guidance, you may use a structure like:
+
+```js
+const [proposalType, setProposalType] = useState("group"); // "group" | "individual"
+
+const [members, setMembers] = useState([
+  {
+    id: 1,
+    name: "",
+    requestedAmount: "",
+    documentType: "",
+    documentNumber: "",
+  },
+  // additional members...
+]);

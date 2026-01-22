@@ -1,0 +1,73 @@
+You are working on the Artemis Hunting MVP, in the React file:
+
+client/src/pages/ProductConfigScreen.tsx
+
+The Loan Details tab already calculates a monthly installment value internally (using 14% APR and the loan value + number of installments), but this value is not yet visible directly next to the "Number of installments" field.
+
+Please update ONLY the Loan Details tab in ProductConfigScreen.tsx as follows:
+
+Add a new, read-only field to show the calculated installment amount:
+
+Place it on the same row as "Number of installments".
+
+The layout should remain a 2-column grid for this row:
+
+Left column: existing Number of installments dropdown.
+
+Right column: new non-editable input.
+
+Field details:
+
+Label: Installment amount (per month)
+
+Type: text input styled like the other inputs in this form.
+
+readOnly so the user cannot change it manually.
+
+Value:
+
+When loan value and number of installments are both valid:
+
+Compute the installment using the same logic already used for the monthly payment in this screen, or, if there is no helper, use:
+
+P = numeric loan value.
+
+APR = 14% (0.14).
+
+r = APR / 12 (monthly rate).
+
+n = number of installments.
+
+payment = P * r / (1 - (1 + r) ** -n).
+
+Format payment as US currency (e.g. $1,234.56) using the same currency-format helper already used for Loan value and summary.
+
+When inputs are missing or invalid (no installments selected, loan value out of range, or first payment date invalid):
+
+Show a neutral placeholder like -- in this field.
+
+Reactivity:
+
+Recalculate and update the Installment amount field whenever any of the following change:
+
+Loan value (after parsing/validation).
+
+Number of installments.
+
+Make sure this uses the same state that feeds the existing summary calculation so values stay consistent.
+
+Validation:
+
+Do not add new validation rules for this field itself.
+
+It is purely informational; it just reflects the current valid values of loan value and number of installments.
+
+Existing validation on Save & Exit (loan value range, installments required, etc.) should remain unchanged.
+
+Styling:
+
+Use the same input component and Tailwind classes as other read-only inputs in this file (for example, the read-only Interest rate field).
+
+Ensure horizontal alignment: the labels for “Number of installments” and “Installment amount (per month)” should align vertically with other labels in the grid, and the two inputs should have the same width as the other fields in their columns.
+
+Only modify ProductConfigScreen.tsx to add this new field and its supporting calculation; do not change routing, other tabs, or unrelated components.

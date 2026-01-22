@@ -1,0 +1,72 @@
+You are modifying an existing React project called **Artemis Hunting**.  
+Please apply the following changes to the current codebase.
+
+---
+
+## 1. Rename the project from MPP to MVP
+
+Everywhere in the UI and project where the text appears as:
+
+- `Artemis HUNTING MPP`
+- `HUNTING MPP`
+
+update it to:
+
+- `Artemis HUNTING MVP`
+- `HUNTING MVP`
+
+This includes the header title, any subtitles, and any visible labels in the app. The brand name `Artemis` and the logo remain the same.
+
+---
+
+## 2. Fix the logo rendering in the header
+
+In the top-left header, the Artemis logo is currently shown inside a square with grey/empty space around it. It looks like the logo does not fill the container.
+
+Update the header logo so that:
+
+- The logo image **fills its container** (no grey or empty borders).
+- The container can be either:
+  - a square with rounded corners, or
+  - a slightly rounded rectangle that fits the logo aspect ratio,
+- but in all cases:
+  - the logo should be clearly visible and centered,
+  - there should be no grey padding or background that makes it look “floating in a grey box”.
+
+Implementation guidelines:
+
+- Use a fixed-size container (for example 40x40 or similar) with `border-radius` for rounded corners.
+- Make the `<img>` element fill the container:
+  - `width: 100%`
+  - `height: 100%`
+  - `object-fit: contain` (or `cover` if it looks better with this particular logo).
+- Use a **white** or transparent background so the logo integrates nicely with the header.
+
+---
+
+## 3. Update master KPIs data structure and UI
+
+Update the mock file that defines the master KPIs (for example `src/mock/kpis.js`) to use the following structure exactly:
+
+```js
+export const masterKpis = {
+  creditPortfolio: {
+    label: "Credit Portfolio",
+    currentValue: 450000,
+    lastMonthValue: 400000,
+  },
+  activeClients: {
+    label: "Active Clients",
+    currentValue: 124,
+    lastMonthValue: 120,
+  },
+  delinquencyRate: {
+    label: "Delinquency Rate",
+    currentValue: 0.024, // 2.4%
+    lastMonthValue: 0.026, // 2.6%
+  },
+  monthlyGoal: {
+    targetDisbursement: 600000,
+    achievedDisbursement: 390000, // → 65% of the target
+  },
+};

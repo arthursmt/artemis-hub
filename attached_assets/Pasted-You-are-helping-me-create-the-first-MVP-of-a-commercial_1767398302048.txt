@@ -1,0 +1,203 @@
+You are helping me create the first MVP of a commercial app for microfinance field agents.
+
+## Project context
+
+Project name: **Artemis Hunting MPP**
+
+This app is used by loan officers / credit agents in the field (microfinance context). They visit clients, originate credit proposals on tablets, and manage their portfolio. 
+
+We are starting ONLY with the **front-end** (React) using **mocked data**. Later we will add a real **Node.js backend**, but for now there is NO real backend, only placeholder structure.
+
+The goal of this first step (MPP) is:
+- A working **Home screen** for the agent
+- Basic **navigation** between the main pipeline screens
+- All data coming from local **mock data** files
+
+---
+
+## Tech requirements
+
+- Use **React** (JavaScript, not TypeScript for now).
+- Single-page app is fine; you can use simple React state instead of a full router in this first step.
+- File structure should be clean and modular, something like:
+
+  - `src/App.jsx`
+  - `src/index.jsx`
+  - `src/components/` (reusable UI components)
+  - `src/screens/` (each main screen)
+  - `src/mock/` (mock data files)
+  - `src/styles/` (global styles if needed)
+
+- Create a folder called `backend/` with a simple `README.md` stating this will later contain a Node.js backend (do NOT implement backend logic now).
+
+Use simple, clean styling (CSS or a minimal utility approach) targeting **tablet usage** (so layout should look good around 1024px width).
+
+---
+
+## Domain concepts (very important)
+
+We are in **microfinance / microcredit**.
+
+- A **proposal** is a credit application created by an agent.
+- A **contract** is the approved and active loan.
+- The app is centred on the **agent**, not on the client.
+
+The agent sees:
+
+- Their **Master KPIs**
+- Their **credit pipeline** (stages of proposals and contracts)
+- Entry point to create a **new credit proposal**
+
+---
+
+## Home Screen (Agent Dashboard) – Requirements
+
+Create a main screen called **Home** (Agent Dashboard) with:
+
+### 1. Header
+
+- Simple header with:
+  - App name: `Artemis Hunting`
+  - Placeholder for agent name like: `Welcome, Agent Silva` (hardcoded is fine for now).
+
+### 2. Master KPIs section
+
+Create a **“Master KPIs”** section with **three main KPIs** the agent must always follow. These values must come from a **mock data file**, not hardcoded directly in the JSX.
+
+The three master KPIs:
+
+1. **Credit Portfolio**  
+   - Label: `Credit Portfolio`
+   - Description: Total outstanding loan amount in the agent’s portfolio.
+   - Show a value like `$120,000` (mocked).
+
+2. **Client Portfolio**  
+   - Label: `Active Clients`
+   - Description: Number of clients with active contracts in the agent’s portfolio.
+   - Show a value like `85` (mocked).
+
+3. **Delinquency Rate**  
+   - Label: `Delinquency`
+   - Description: Percentage of the portfolio that is overdue.
+   - Show a value like `4.8%` (mocked).
+
+Layout:
+- Display these three KPIs as **cards** in a responsive grid (e.g. 3 columns on tablet, stacked on smaller screens).
+- Each card can show:
+  - Title (label)
+  - Main value
+  - Small subtitle/description.
+
+The KPI values should be read from something like `src/mock/kpis.js`.
+
+### 3. Pipeline Overview section
+
+Below the Master KPIs, create a **“Pipeline Overview”** section.
+
+We have five stages in the agent’s pipeline:
+
+1. **On Going**  
+   - Proposals that have been started but are **incomplete** (missing data or documents).
+
+2. **Under Evaluation**  
+   - Proposals that are **complete** (all data, documents, signatures) and have been **sent to the backoffice / risk workflow**.
+
+3. **Completed**  
+   - Proposals that have been **approved** and turned into contracts in the **last 30 days**.
+
+4. **Renewals**  
+   - Contracts that will reach maturity in the **next 60 days** and have not yet been renewed.
+
+5. **Collections**  
+   - Contracts with **overdue payments** (delinquent contracts).
+
+UI:
+
+- Show these five stages as **cards** or tiles in a grid.
+- Each card must show:
+  - Stage name (e.g. `On Going`)
+  - A short description
+  - A **count** of items in that stage (coming from mock data).
+- The cards must be **clickable**:
+  - Clicking a card navigates to the respective screen:
+    - On Going → `OnGoingProposalsScreen`
+    - Under Evaluation → `UnderEvaluationProposalsScreen`
+    - Completed → `CompletedProposalsScreen`
+    - Renewals → `RenewalsScreen`
+    - Collections → `CollectionsScreen`
+
+The counts should be derived from a **shared mock data source**, for example `src/mock/proposals.js` and `src/mock/contracts.js`.
+
+### 4. New Proposal CTA
+
+On the Home screen, include a clear primary button:
+
+- Label: `New Credit Proposal`
+- When clicked, it should navigate to a **placeholder** screen called `NewProposalScreen` where later we will build a multi-step form.
+
+For now, the `NewProposalScreen` can just show:
+
+- Title: `New Credit Proposal`
+- Text: `This will be the multi-step proposal form (coming soon).`
+
+---
+
+## Navigation and State Management
+
+For this first version, use **simple React state** in `App.jsx` to handle which screen is currently visible.
+
+Example approach:
+
+- Have a state variable like `currentScreen` with possible values:
+  - `"home"`
+  - `"ongoing"`
+  - `"under_evaluation"`
+  - `"completed"`
+  - `"renewals"`
+  - `"collections"`
+  - `"new_proposal"`
+
+- Clicking each pipeline card on Home sets `currentScreen` to the corresponding value.
+- Clicking the `New Credit Proposal` button also sets `currentScreen` to `"new_proposal"`.
+- Provide a way to go back to Home from each screen (e.g. a simple “Back to Home” link or top navigation).
+
+No external routing library is required for this step (React Router is optional; if you think it helps, you can add it, but keep things simple).
+
+---
+
+## Screens for each stage (first version)
+
+Create basic screens under `src/screens/`:
+
+- `HomeScreen.jsx`
+- `OnGoingProposalsScreen.jsx`
+- `UnderEvaluationProposalsScreen.jsx`
+- `CompletedProposalsScreen.jsx`
+- `RenewalsScreen.jsx`
+- `CollectionsScreen.jsx`
+- `NewProposalScreen.jsx`
+
+For this first version:
+
+- Each screen should have:
+  - A title (e.g. `On Going Proposals`)
+  - A short description of what that stage represents.
+  - A **simple table or list** of items from mock data.
+
+### Mock data structure suggestion
+
+Create `src/mock/proposals.js` with an array of proposal objects, for example:
+
+```js
+export const proposals = [
+  {
+    id: "P-001",
+    clientName: "Maria Gomez",
+    amount: 1500,
+    status: "on_going", // or "under_evaluation", "completed"
+    createdAt: "2025-01-10",
+    updatedAt: "2025-01-12",
+    approvedAt: null,
+  },
+  // more proposals...
+];

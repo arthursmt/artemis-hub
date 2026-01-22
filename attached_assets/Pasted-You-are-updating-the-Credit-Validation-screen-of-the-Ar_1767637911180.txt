@@ -1,0 +1,146 @@
+You are updating the **Credit Validation** screen of the Artemis Hunting MVP app.
+
+Keep the existing layout and styling as-is:
+- One card per member (with name, ID document, etc.).
+- A "VALIDATION CHECKS" section with rows like:
+  - Credit bureau checks
+  - AML / anti–money–laundering screening
+  - Internal blacklist / risk criteria
+- A right-hand panel with "Validation in Progress".
+
+Do NOT change the overall structure. Only implement the behaviors and text changes described below.
+
+---
+
+## 1) Show the correct requested amount per member (no more $0.00)
+
+Right now, each member card shows `$0.00` in the top-right corner.
+
+Update this so that:
+
+- The top-right amount for each member shows that member’s **requested loan amount**, formatted as US currency.
+- Use the same numeric value that was captured on the New Proposal screen for that member.
+  - Example: if Member 1 requested 5,555.55 then display `$5,555.55`.
+
+If this amount is already stored in state (e.g. `member.requestedAmount`), use it here and format it consistently.
+
+---
+
+## 2) Rename the third check label
+
+In the `VALIDATION CHECKS` section:
+
+- Change the text `Internal blacklist / risk criteria` to:
+
+  **`Internal risk criteria`**
+
+Do not use the word “blacklist” anywhere in the UI.
+
+---
+
+## 3) Simulate inline validation with progressive status changes
+
+Because there is no real backend, we want to simulate an inline validation flow using front-end logic.
+
+For each member and each validation check:
+
+### 3.1. Status states
+
+Each check should have one of these states:
+
+- `Pending`
+- `Approved`
+- `Denied`
+
+Visual ideas (adapt to existing style):
+
+- Pending: yellow text/icon with a clock (as in the current design).
+- Approved: green text/icon with a check mark.
+- Denied: red text/icon with an “X” or similar.
+
+### 3.2. Initial state
+
+When the Credit Validation screen first loads:
+
+- All checks for all members start as **Pending**.
+- The right-hand panel for each member shows:
+  - Title: `Validation in Progress`
+  - Subtext: e.g. `Automated rules engine is processing this member.`
+
+### 3.3. Simulated async progression
+
+Implement a simple front-end simulation using timers (for example `setTimeout`):
+
+- After a short delay (e.g. 1–3 seconds), update each check from `Pending` to either:
+  - `Approved`, or
+  - `Denied`.
+
+You can implement logic such as:
+
+- For now, use a simple deterministic or random rule (e.g. approve all checks, or randomly deny one check for some members).
+- The key is that the UI **visibly transitions** from `Pending` → `Approved` or `Denied` over time.
+
+For each member, compute an **overall member status** based on the individual checks:
+
+- If **all checks = Approved** → member status = `Approved`.
+- If **any check = Denied** → member status = `Denied`.
+- If at least one check still Pending and none Denied → member status = `In Progress`.
+
+### 3.4. Right-hand panel messaging
+
+Update the right-hand panel on each member card based on the overall member status:
+
+- If member status = `In Progress`:
+  - Title: `Validation in Progress`
+  - Subtext: `Automated rules engine is processing this member.` (or similar).
+
+- If member status = `Approved`:
+  - Title: `Validation Approved`
+  - Subtext: `All checks have been approved for this member.`
+
+- If member status = `Denied`:
+  - Title: `Validation Denied`
+  - Subtext: `This member did not meet one or more risk criteria.`
+
+Use the word **“Denied”** (not “dennied”).
+
+For checks that are Denied, show a brief description next to the check row, for example:
+
+- `Denied – does not meet internal risk criteria`
+- `Denied – credit bureau rules not met`
+
+Avoid using “blacklist” in any of these messages.
+
+---
+
+## 4) Allow removing denied members at this stage
+
+Members who end up with an overall status of **Denied** should be removable in this phase so the agent can proceed with only approved members.
+
+Implement:
+
+- For members with status `Denied`, show a **“Remove member”** action on the card:
+  - This can be a button or link, placed in a consistent, visible spot (e.g. near the top-right or bottom-right of the card).
+- When the agent clicks “Remove member”:
+  - Show a confirmation dialog (similar to the one used in the New Proposal screen), e.g.:
+    - `Are you sure you want to remove this member from the proposal?`
+  - Only remove the member if the user confirms.
+- After removal:
+  - The member is removed from the list on this screen.
+  - Any subsequent steps should only include the remaining members.
+
+You may enforce that the user cannot move to the next step while there are members with status `Denied`, or require that all denied members be removed first.
+
+---
+
+## 5) Integration notes
+
+- Keep the screen purely front-end (no real API calls). Use timeouts or simple local logic to simulate async validations and status transitions.
+- Make sure the member data (name, ID document, document number, and requested amount) is correctly passed from the New Proposal step into this Credit Validation screen.
+- Do not change navigation structure beyond what already exists; just enhance the behavior of this screen.
+
+After these changes:
+- Each member will show their real requested amount instead of `$0.00`,
+- Validation will appear to run in-line (Pending → Approved/Denied),
+- The wording uses “Internal risk criteria” instead of “blacklist”,
+- Denied members can be removed at this stage before proceeding.

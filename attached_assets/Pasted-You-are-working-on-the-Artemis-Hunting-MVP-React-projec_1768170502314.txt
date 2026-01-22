@@ -1,0 +1,452 @@
+You are working on the Artemis Hunting MVP React project.
+
+We now need to:
+
+1) Refine the existing behavior of the Loan Details / Insurance layout so that fields stay visually aligned whether insurance is selected or not.
+2) Implement multi-member controls in the Product Configuration (add/remove members up to 5).
+3) Implement the "Personal Data" tab for each member with full form fields and validation.
+
+All changes are in the Product Configuration flow. Do NOT touch unrelated routes/screens.
+
+--------------------------------------------------------------------
+A. LAYOUT REFINEMENT – INSURANCE + SUMMARY
+--------------------------------------------------------------------
+
+1. Open:
+   client/src/pages/ProductConfigScreen.tsx
+
+2. In the Loan Details / Insurance section and the Summary card:
+   - Ensure the rows for:
+       - "Credit life insurance (monthly share)"
+       - "Optional insurances"
+       - "Total monthly payment"
+     are always rendered with the same layout, whether Borrower’s Insurance is YES or NO and whether optional insurances are selected or not.
+   - If Borrower’s Insurance is OFF, show:
+       - "Credit life insurance (monthly share): $0.00"
+       - Keep the helper text in a lighter color or gray to indicate it is not selected, but do not collapse or remove the row. The card height and alignment must not jump.
+   - For Optional insurances:
+       - When Insurance 2 or 3 are "hidden" by the business rules, replace them with empty vertical space (or a transparent placeholder) so the overall card height remains stable.
+   - The goal: when the user toggles Borrower’s Insurance or changes optional insurances, the whole Loan Details + Summary area should keep the same grid alignment and vertical spacing.
+
+--------------------------------------------------------------------
+B. MEMBER TABS – ADD / REMOVE / LIMIT 5
+--------------------------------------------------------------------
+
+We already have member tabs (1. Name, 2. Name, etc.). We want:
+
+- A "+" action near the member tabs to add a new client.
+- An "X" on each member tab to remove that client.
+- A max of 5 members per proposal.
+
+1. In ProductConfigScreen.tsx, locate the section that renders the member tabs and the handlers `handleAddMember` and `handleRemoveMember`.
+
+2. Adjust the member tab UI:
+
+   - Each tab must show:
+        [index]. [member full name] [leader star if leader] [small X button]
+   - The X must be always visible (or visible on hover) and call `handleRemoveMember(member.id, e)`.
+
+3. The "+" button for adding members:
+
+   - Keep it rendered inline with the tabs, immediately after the last member tab.
+   - If there is at least 1 member, the first tab is "Member 1". The "+" appears to the right of the last tab.
+   - When `group.members.length >= 5`, the "+" button must be disabled or hidden, and no new members can be created.
+   - If disabled, show a `title` like "Maximum of 5 members per group".
+
+4. In `handleAddMember`:
+
+   - Before creating a new member, guard with:
+
+     if (group.members.length >= 5) {
+       window.alert("A group can have at most 5 members.");
+       return;
+     }
+
+   - The new member must have all fields needed by the Personal Data form (see Section C). Initialize them as empty strings, except for:
+       firstName: "",
+       middleName: "",
+       lastName: "",
+       documentType: "ssn" (or the current default),
+       documentNumber: "",
+       requestedAmount: "0",
+       countryOfOrigin: "",
+       birthDate: "",
+       homeAddress1: "",
+       homeAddress2: "",
+       state: "",
+       city: "",
+       zipCode: "",
+       contact1Type: "Mobile",
+       contact1Number: "",
+       contact2Type: "",
+       contact2Number: "",
+       contact3Type: "",
+       contact3Number: "",
+       referenceName1: "",
+       referenceNumber1: "",
+       referenceName2: "",
+       referenceNumber2: "".
+
+   - After adding, set this new member as the active member tab.
+
+5. In `handleRemoveMember`:
+
+   - Keep or add a confirm dialog:
+
+     if (!window.confirm("Are you sure you want to remove this member? All data for this client will be lost.")) {
+       return;
+     }
+
+   - If the member is actually removed, also:
+       - Remove their loan details from `loanDetailsByMember` (if that record exists) to avoid stale data.
+       - Adjust the active member:
+           - If the removed member was active, switch to:
+               - the next member in the list, or
+               - the previous one if there is no next, or
+               - the new leader if necessary.
+
+--------------------------------------------------------------------
+C. SHARED SUB-TABS PER MEMBER
+--------------------------------------------------------------------
+
+Each member must have the same 4 sub-tabs:
+
+   - Loan Details
+   - Personal Data
+   - Business Data
+   - Financials (P&L)
+
+1. Ensure `ProductConfigScreen` has state for the active sub-tab per member, or a single active sub-tab that applies to whichever member is selected. Example:
+
+   const [activeSection, setActiveSection] =
+     useState<"loan" | "personal" | "business" | "financials">("loan");
+
+2. Render a row of section tabs below the member tabs:
+
+   [Loan Details] [Personal Data] [Business Data] [Financials (P&L)]
+
+   - Clicking one of these sets `activeSection`.
+   - When `activeSection === "loan"`, render the existing Loan Details form.
+   - When `activeSection === "personal"`, render the new Personal Data form (see Section D).
+   - For now, `business` and `financials` can remain as placeholders ("Coming soon") but with stable layout.
+
+--------------------------------------------------------------------
+D. PERSONAL DATA TAB IMPLEMENTATION
+--------------------------------------------------------------------
+
+We now implement the Personal Data form for the active member. The fields and rules:
+
+Personal Data       Mandatory   Field Type
+------------------------------------------------
+First Name          Yes         Text
+Middle Name         No          Text
+Last Name           Yes         Text
+Document type       Yes         List
+Document ID         Yes         Text
+Country of Origin   Yes         List
+Birth Date          Yes         Date
+Home Address 1      Yes         Text
+Home Address 2      No          Text
+State               Yes         List
+City                Yes         Text
+Zip Code            Yes         Num
+Contact 1 Type      Yes         List
+Contact 1 Number    Yes         Num
+Contact 2 Type      No          List
+Contact 2 Number    No          Num
+Contact 3 Type      No          List
+Contact 3 Number    No          Num
+Reference Name 1    No          Text
+Reference Number 1  No          Num
+Reference Name 2    No          Text
+Reference Number 2  No          Num
+
+--------------------------------------------------------------------
+D1. Extend the Member type
+--------------------------------------------------------------------
+
+1. Open:
+   client/src/lib/proposalStore.ts
+
+2. Find the `Member` type/interface and extend it with the fields above:
+
+   export type Member = {
+     id: number;
+     firstName: string;
+     middleName?: string;
+     lastName: string;
+     requestedAmount: string;
+     documentType: string;
+     documentNumber: string;
+     countryOfOrigin?: string;
+     birthDate?: string;       // ISO "YYYY-MM-DD"
+     homeAddress1?: string;
+     homeAddress2?: string;
+     state?: string;
+     city?: string;
+     zipCode?: string;
+     contact1Type?: string;
+     contact1Number?: string;
+     contact2Type?: string;
+     contact2Number?: string;
+     contact3Type?: string;
+     contact3Number?: string;
+     referenceName1?: string;
+     referenceNumber1?: string;
+     referenceName2?: string;
+     referenceNumber2?: string;
+   };
+
+3. Make sure existing usages of `Member` still compile. Initialize missing fields when seeding test data or creating new members.
+
+--------------------------------------------------------------------
+D2. Personal Data form state + bindings
+--------------------------------------------------------------------
+
+All personal data must be stored in `group.members` (source of truth), and persisted via the existing proposal store.
+
+1. In ProductConfigScreen.tsx:
+
+   - Derive the active member:
+
+     const activeMemberId = ...; // already exists
+     const activeMember = group.members.find(m => m.id === activeMemberId) ?? group.members[0];
+
+   - Create a helper to update personal data fields:
+
+     const handlePersonalFieldChange = (field: keyof Member, value: string) => {
+       if (!group || !activeMember) return;
+
+       const updatedMembers = group.members.map(member =>
+         member.id === activeMember.id
+           ? { ...member, [field]: value }
+           : member
+       );
+
+       const newGroup = { ...group, members: updatedMembers };
+       saveGroupToStore(newGroup); // reuse existing function to update local state + store
+     };
+
+2. The Personal Data tab should be rendered when `activeSection === "personal"`:
+
+   - Use a white card (same style as Loan Details), with generous padding and a 2-column grid on desktop:
+
+     <Card ...>
+       <CardContent>
+         <h2>Personal Data</h2>
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+           {/* fields */}
+         </div>
+       </CardContent>
+     </Card>
+
+3. Bind each field to `activeMember` and `handlePersonalFieldChange`:
+
+   - First Name (required text):
+
+     value={activeMember.firstName || ""}
+     onChange={(e) => handlePersonalFieldChange("firstName", e.target.value)}
+
+   - Middle Name:
+
+     value={activeMember.middleName || ""}
+     onChange={(e) => handlePersonalFieldChange("middleName", e.target.value)}
+
+   - Last Name (required):
+
+     value={activeMember.lastName || ""}
+     onChange={(e) => handlePersonalFieldChange("lastName", e.target.value)}
+
+   - Document type (required list):
+
+     Use a `<select>` with options like:
+       - "US Driver's License"
+       - "State ID"
+       - "Passport"
+       - "Foreign Government ID"
+       - "Social Security Number (SSN)"
+       - "Other"
+
+     value={activeMember.documentType || ""}
+     onChange={(e) => handlePersonalFieldChange("documentType", e.target.value)}
+
+   - Document ID (required text):
+
+     value={activeMember.documentNumber || ""}
+     onChange={(e) => handlePersonalFieldChange("documentNumber", e.target.value)}
+
+   - Country of Origin (required list):
+
+     Use a dropdown with reasonable options:
+       - "United States"
+       - "Mexico"
+       - "Brazil"
+       - "Guatemala"
+       - "Honduras"
+       - "Other"
+
+     value={activeMember.countryOfOrigin || ""}
+     onChange={(e) => handlePersonalFieldChange("countryOfOrigin", e.target.value)}
+
+   - Birth Date (required date):
+
+     HTML type="date".
+
+     value={activeMember.birthDate || ""}
+     onChange={(e) => handlePersonalFieldChange("birthDate", e.target.value)}
+
+   - Home Address 1 (required text):
+
+     value={activeMember.homeAddress1 || ""}
+     onChange={(e) => handlePersonalFieldChange("homeAddress1", e.target.value)}
+
+   - Home Address 2 (optional text):
+
+     value={activeMember.homeAddress2 || ""}
+     onChange={(e) => handlePersonalFieldChange("homeAddress2", e.target.value)}
+
+   - State (required list):
+
+     Use a dropdown of US states abbreviations (AL, AK, AZ, ..., WY). If there is already a constant for this, reuse it.
+
+     value={activeMember.state || ""}
+     onChange={(e) => handlePersonalFieldChange("state", e.target.value)}
+
+   - City (required text):
+
+     value={activeMember.city || ""}
+     onChange={(e) => handlePersonalFieldChange("city", e.target.value)}
+
+   - Zip Code (required num):
+
+     Use a text or number input, but store as string:
+
+     value={activeMember.zipCode || ""}
+     onChange={(e) => handlePersonalFieldChange("zipCode", e.target.value)}
+
+   - Contact types lists:
+
+     Use a dropdown with options:
+       - "Mobile"
+       - "Home"
+       - "Work"
+       - "WhatsApp"
+       - "Other"
+
+     Contact 1 Type (required):
+       value={activeMember.contact1Type || "Mobile"}
+       onChange={(e) => handlePersonalFieldChange("contact1Type", e.target.value)}
+
+     Contact 1 Number (required numeric string):
+       value={activeMember.contact1Number || ""}
+       onChange={(e) => handlePersonalFieldChange("contact1Number", e.target.value)}
+
+     Contact 2 Type / Number (optional):
+       value={activeMember.contact2Type || ""}
+       onChange={(e) => handlePersonalFieldChange("contact2Type", e.target.value)}
+       value={activeMember.contact2Number || ""}
+       onChange={(e) => handlePersonalFieldChange("contact2Number", e.target.value)}
+
+     Contact 3 Type / Number (optional) similarly.
+
+   - References (optional):
+
+     Reference Name 1:
+       value={activeMember.referenceName1 || ""}
+       onChange={(e) => handlePersonalFieldChange("referenceName1", e.target.value)}
+
+     Reference Number 1:
+       value={activeMember.referenceNumber1 || ""}
+       onChange={(e) => handlePersonalFieldChange("referenceNumber1", e.target.value)}
+
+     Reference Name 2 / Number 2 similarly.
+
+4. Layout / grouping:
+
+   Suggested grid (2 columns on desktop):
+
+   Row 1: First Name | Last Name
+   Row 2: Middle Name | Birth Date
+   Row 3: Document type | Document ID
+   Row 4: Country of Origin | (empty or Zip Code)
+   Row 5: Home Address 1 | Home Address 2
+   Row 6: State | City
+   Row 7: Zip Code | (empty)
+   Row 8: Contact 1 Type | Contact 1 Number
+   Row 9: Contact 2 Type | Contact 2 Number
+   Row 10: Contact 3 Type | Contact 3 Number
+   Row 11: Reference Name 1 | Reference Number 1
+   Row 12: Reference Name 2 | Reference Number 2
+
+   Use consistent spacing, labels, and helper text styles similar to the Loan Details form.
+
+--------------------------------------------------------------------
+D3. Validation for Personal Data (required fields)
+--------------------------------------------------------------------
+
+1. We already validate required fields for Loan Details on Save & Exit. Extend this logic to also validate Personal Data for ALL members before saving and navigating.
+
+2. In ProductConfigScreen.tsx:
+
+   - Extend the component’s error state to include personal data errors, for example:
+
+     const [personalErrors, setPersonalErrors] =
+       useState<Record<number, Partial<Record<keyof Member, string>>>>({});
+
+   - Implement a function `validatePersonalData()` that:
+
+     - Iterates over all `group.members`.
+     - For each member, checks required fields:
+
+       - firstName
+       - lastName
+       - documentType
+       - documentNumber
+       - countryOfOrigin
+       - birthDate
+       - homeAddress1
+       - state
+       - city
+       - zipCode
+       - contact1Type
+       - contact1Number
+
+     - Builds an error object with messages like "This field is required".
+     - Updates `personalErrors` state.
+     - Returns `true` if all required personal fields are filled for every member; otherwise `false`.
+
+   - In `handleSaveExit` (and in the Back to Home confirm handler), before persisting and navigating:
+
+     const personalOk = validatePersonalData();
+     const loanOk = validateLoanDetails(); // existing function
+
+     if (!personalOk || !loanOk) {
+       toast({
+         title: "Missing required information",
+         description: "Please complete all mandatory fields in Loan Details and Personal Data before continuing.",
+         variant: "destructive",
+       });
+       return;
+     }
+
+3. In the Personal Data form, under each input, if there is an error for that field in `personalErrors[activeMember.id]?.firstName`, show a small red text:
+
+   {personalErrors[activeMember.id]?.firstName && (
+     <p className="mt-1 text-xs text-red-500">
+       {personalErrors[activeMember.id]?.firstName}
+     </p>
+   )}
+
+4. This way, when the agent tries to save without completing required fields, they see the error messages directly under the missing fields.
+
+--------------------------------------------------------------------
+E. FINAL CHECK
+--------------------------------------------------------------------
+
+After implementing:
+
+- Switching members via the top tabs preserves separate data per member for both Loan Details and Personal Data.
+- Adding members works until there are 5; after that the "+" stops working with a clear message.
+- Removing a member asks for confirmation and deletes all associated data.
+- All four sub-tabs (Loan Details, Personal Data, Business Data, Financials (P&L)) exist for each member; Loan and Personal are fully functional; the other two can still be placeholders.
+- Layout for Insurance / Summary remains aligned when Borrower’s Insurance is toggled and when optional insurances appear/disappear.

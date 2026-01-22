@@ -1,0 +1,170 @@
+Create a store API like:
+
+type ProposalsContextValue = {
+  proposals: Proposal[];
+  createProposalFromGroup(group: Group): Proposal;  // creates and returns a new proposal
+  updateProposal(proposalId: string, updater: (p: Proposal) => Proposal): void;
+  getProposalById(proposalId: string): Proposal | undefined;
+};
+
+
+Implementation details:
+
+Use useState inside a ProposalsProvider to hold proposals.
+
+For createProposalFromGroup(group):
+
+Generate a unique id (e.g. using Date.now().toString()).
+
+Generate a groupId if it doesn't exist (e.g. "GRP-" + Date.now()).
+
+Compute:
+
+leaderName from the leader member (first + last name),
+
+totalAmount as the sum of all members’ requested amounts,
+
+dateCreated as new Date().toISOString(),
+
+status = "ON_GOING",
+
+data.group = group.
+
+Push the new proposal into proposals and return it.
+
+For updateProposal, map over the array and replace the matching proposal.
+
+For getProposalById, just find by id.
+
+Wrap the whole app (or at least the pages involved) in <ProposalsProvider> so that Dashboard, Credit Validation, Product Configuration, and On Going Proposals can all access the store.
+
+2) Credit Validation: SAVE proposal ONLY on "Continue to Product Config"
+
+Find the component for the Credit Validation screen (the one that has the button "Continue to Product Config" at the bottom).
+
+This screen already knows the validated group/members (the same object currently passed to Product Configuration).
+
+Change the click handler of "Continue to Product Config" so that it does the following:
+
+If this flow does not yet have a proposalId:
+
+Call createProposalFromGroup(group) from the ProposalsContext.
+
+Capture the returned proposal.id.
+
+If this flow already has a proposalId (for example when the user came back from Product Config and re-clicked Continue):
+
+Call updateProposal(proposalId, ...) to sync any latest changes to data.group.
+
+After step 1 or 2, navigate to Product Configuration with that proposal ID, for example:
+
+navigate(`/product-config/${proposalId}`);
+
+
+Important:
+
+The proposal must be created only here, when the user has passed validation and clicks Continue to Product Config.
+
+Do NOT create a proposal earlier (e.g., on New Proposal).
+
+Do NOT create multiple proposals for the same validation flow. Re-use the existing proposal if it already exists.
+
+You may store the proposalId in React state or in the group object so that Credit Validation knows whether this flow already created a proposal.
+
+3) Product Configuration: load and update from the store
+
+In the Product Configuration screen (route like /product-config/:proposalId):
+
+Read proposalId from the route params.
+
+Use getProposalById(proposalId) from the ProposalsContext to load the proposal.
+
+If the proposal is not found, you can show an error or redirect to Home.
+
+All forms inside Product Configuration (personal, business, financial, credit details) must read/write from proposal.data.group.
+
+When the user edits any field in the Product Config forms:
+
+Call updateProposal(proposalId, (prev) => ({ ...prev, data: { ...prev.data, group: updatedGroup } })).
+
+So the proposal in the store is always in sync as the user fills the form.
+
+4) Product Configuration: "Back to Home" behavior
+
+On the Product Configuration screen, the bottom-left button currently labeled something like "Back to Validation" must be updated:
+
+Change the label to: "Back to Home".
+
+Its click handler should simply navigate to the Dashboard / Home route (e.g. /).
+
+It must not delete or reset the proposal from the store. The proposal remains stored with status = "ON_GOING".
+
+5) Dashboard → On Going Proposals list
+
+On the Dashboard / Home screen:
+
+The "On Going" card in the Pipeline Overview must navigate to the On Going Proposals list screen (you already have a mock for this table).
+
+In that On Going Proposals screen:
+
+Replace any hardcoded dummy data with data from ProposalsContext.proposals.
+
+Show only proposals where status === "ON_GOING".
+
+For each proposal row:
+
+Client Name → proposal.leaderName.
+
+Amount → format proposal.totalAmount as US currency.
+
+Date Created → format proposal.dateCreated similar to existing UI (e.g. "Mar 09, 2024").
+
+Status → show pill "ON GOING".
+
+Actions → see next section.
+
+6) "Keep filling" action: resume Product Config for a saved proposal
+
+In the Actions column of the On Going Proposals list:
+
+Replace the "Details" text/link with a clear action button labeled "Keep filling".
+
+On click:
+
+Get the proposal.id for that row.
+
+Navigate to /product-config/${proposal.id}.
+
+The Product Configuration screen will then:
+
+Load the proposal from the ProposalsContext,
+
+Show the already-entered data,
+
+Allow the agent to continue filling the form.
+
+This is the “resume proposal” behavior the user needs.
+
+7) Summary of required behavior
+
+Create and save a proposal ONLY when the user clicks "Continue to Product Config" after Credit Validation.
+
+Store proposals in a global ProposalsContext (local “database”).
+
+Product Configuration reads and writes form data from the stored proposal.
+
+The “Back to Home” button on Product Config returns to Dashboard without deleting the proposal.
+
+The Dashboard’s On Going card opens a list of saved proposals from the store.
+
+Each row has a "Keep filling" button that re-opens the Product Configuration screen for that proposal.
+
+Implement this end-to-end so that:
+
+I can start from Home → New Proposal → Validation → Continue to Product Config (this creates the proposal),
+
+Then click "Back to Home",
+
+Go to On Going → click "Keep filling",
+
+And return to the same Product Configuration screen with all the previously saved data.

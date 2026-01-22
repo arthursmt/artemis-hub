@@ -1,0 +1,403 @@
+PROMPT PARA COLAR NO REPLIT (cole tudo a partir daqui)
+
+You are working on the Artemis Hunting MVP React project.
+
+The Product Configuration screen already has a Loan Details tab inside ProductConfigScreen.tsx with a working form, but we now need to refine the behaviour and layout.
+
+Please update ONLY the Loan Details tab content and its related state/logic. Do not change routing or other screens.
+
+Use the existing code in ProductConfigScreen.tsx as the base and apply the changes below.
+
+1. Loan value: reuse initial requested amount, same rules as Prospecting
+
+The Loan value field must:
+
+Load by default with the same amount that was entered for that member in the initial prospecting screen (“Requested Amount ($)” on the New Proposal screen).
+
+Use the same currency formatting and typing pattern already used there:
+
+User types only digits.
+
+The field is formatted as US currency (e.g. $5,000.00) while typing / on blur.
+
+Accept cents/decimals.
+
+Have the same min/max rules as the initial requested amount:
+
+Minimum: $500.00
+
+Maximum: $50,000.00
+
+Implement or reuse helpers:
+
+Reuse any existing helper/logic that already formats and validates the requested amount on the first screen (prospecting / new proposal). If such helper exists, please import and reuse it here so behaviour stays consistent.
+
+If there’s no reusable helper, inside this component:
+
+Implement a small utility to parse a currency-formatted string to a numeric amount.
+
+Implement a utility to format a numeric amount back to a US currency string.
+
+Validation behaviour:
+
+When the user leaves the Loan value field (on blur) OR clicks any of the +/- buttons:
+
+Parse the value to a number and clamp to the [500, 50000] range.
+
+If the user tries to set a value < 500 or > 50000, show a red validation message under the field, like:
+
+Loan value must be between $500 and $50,000.
+
+While there is a validation error, the form still shows the value but the error text is visible.
+
+When the value is back in range, clear the error.
+
+The four buttons around Loan value must:
+
++ $500, + $1,000, - $500, - $1,000
+
+Adjust the current loan value by the respective amount using the numeric value (not string concatenation).
+
+After changing, re-format the field as currency.
+
+Respect the same limits: never go below 500 or above 50000; if an operation would go outside the range, clamp it and show the same error message.
+
+Align the buttons and the input:
+
+Keep Loan value on the left column and First payment date on the right column.
+
+Place the four buttons in a compact row to the right of the input (as in the screenshot the user sent), with consistent spacing.
+
+Ensure the entire first row is horizontally aligned and visually balanced.
+
+2. Interest rate field and header summary
+
+The Interest rate field:
+
+Label: Interest rate (APR, % per year)
+
+Default value: 14 (meaning 14% APR).
+
+Must be read-only (user cannot edit).
+
+Use the same input styling as other fields, but with readOnly and a subtle greyed-out cursor to indicate it’s fixed.
+
+At the top of the Loan Details card, or in a small sub-header under the dark banner, show a short summary text like:
+
+Base credit rate: 14% APR (fixed)
+Use a small, subtle text style that matches the UI.
+
+We will use 14% APR as the base rate to compute installments (see section 5).
+
+3. Number of installments dropdown and visual fixes
+
+Number of installments:
+
+Implement as a dropdown, not a free text field.
+
+Options: integers from 4 to 12 (inclusive).
+
+Placeholder: Select installments.
+
+This field is required.
+
+Dropdown styling and legibility:
+
+For all dropdowns in this form (Loan type, Number of installments, Loan goal, Optional insurance 1/2/3):
+
+Use the same dropdown component and styles already used on the New Proposal screen for ID Document Type.
+
+Ensure:
+
+Dark text on white background.
+
+No overly bright green background that makes text unreadable.
+
+Same font size and spacing as the other forms of the app.
+
+The user complained that the numbers/options looked “transparent” and hard to read. Make sure the selected option and options in the list are clearly legible on both desktop and tablet.
+
+Layout and alignment:
+
+Use a clean 2-column grid on desktop:
+
+Row 1: Loan value (left) + First payment date (right)
+
+Row 2: Loan type (left) + Grace period (right)
+
+Row 3: Interest rate (left) + Loan goal (right)
+
+Row 4: Number of installments (left) + (right column can be empty or used for something related)
+
+Below these, render the Insurance section and then the summary card.
+
+Make sure inputs in each row align vertically and have consistent column widths.
+
+4. First payment date + grace period rules
+
+First payment date:
+
+HTML type: date or date picker (can use the same component already used).
+
+Validation rules:
+
+Must be within 60 days from the current date (today).
+
+Additionally, the day of month must be <= 15.
+
+Example: if today is 10/01/2026:
+
+A date like 22/02/2026 is invalid (day 22 > 15, even if within 60 days).
+
+A date like 15/02/2026 can be valid (if within 60 days).
+
+Implementation suggestion:
+
+Set min and max attributes on the field to [today, today + 60 days] to restrict the basic range.
+
+On change, compute:
+
+diffDays between selected date and today.
+
+dayOfMonth of the selected date.
+
+If diffDays < 0 or diffDays > 60 OR dayOfMonth > 15:
+
+Set a validation error under the field, e.g.
+First payment date must be within 60 days and on or before the 15th of the month.
+
+You may also clear the field or keep the value but highlight it; main point is the error is visible and Save & Exit should respect validation.
+
+Grace period (days):
+
+Becomes a read-only field calculated by the app.
+
+Whenever the First payment date changes and is valid:
+
+Compute gracePeriodDays = differenceInDays(firstPaymentDate, today) (using an appropriate date diff function at day-level).
+
+Display that value in the Grace period field.
+
+If First payment date is empty or invalid, show 0 or an empty value and an error message accordingly.
+
+5. Loan type, Loan goal, Other goal visibility
+
+Loan type:
+
+Dropdown options: keep as before (e.g. Working capital, Investment, Other).
+
+Default selected: Working capital.
+
+Required.
+
+Loan goal:
+
+Dropdown options (you can reuse the previous list, for example):
+Inventory, Equipment, Working capital, Debt consolidation, Other.
+
+Required.
+
+Other goal:
+
+Input text field (optional).
+
+This field must be conditionally shown:
+
+Only render it when Loan goal is Other.
+
+When Loan goal is anything else, hide the field and clear any previous value.
+
+Place Loan goal and Other goal in a clean way:
+
+Loan goal fits into the right column (Row 3).
+
+Other goal can be a full-width field in a new row below, when visible.
+
+6. Borrower’s insurance and optional insurances
+
+We are modeling 3 optional insurance products with monthly prices:
+
+Work Loss Insurance – $20 / month
+
+Health Premium – $40 / month
+
+Income Insurance – $30 / month
+
+Borrower’s Insurance (Credit Life):
+
+Boolean choice, labelled e.g. Borrower's Insurance (Credit Life).
+
+Implement as Yes/No radio buttons.
+
+Default must be Yes.
+
+For now, this insurance does not add an extra monthly charge (assume it is embedded in the base rate), but keep it in the summary for clarity.
+
+Optional insurance 1:
+
+Dropdown label: Optional insurance 1.
+
+Options:
+
+None (default)
+
+Work Loss Insurance ($20/month)
+
+Health Premium ($40/month)
+
+Income Insurance ($30/month)
+
+When the selected option is not None:
+
+Show a short one-sentence description below the field, such as:
+
+Work Loss: “Helps cover your loan payments if you lose your job.”
+
+Health Premium: “Provides extra protection in case of major medical events.”
+
+Income Insurance: “Protects your monthly income against unexpected shocks.”
+
+Next to the label, show a small info icon (e.g. lucide-react Info icon), clickable.
+
+On click, open a simple popup with more details for that insurance.
+
+If you already have a Dialog/Modal component in the project (e.g. from shadcn/ui), use it.
+Otherwise, a simple window.alert with a short paragraph is acceptable for now.
+
+Optional insurance 2 and 3:
+
+Same structure and options as Optional insurance 1.
+
+Conditional visibility:
+
+Optional insurance 2 is only visible when Optional insurance 1 is not None.
+
+Optional insurance 3 is only visible when Optional insurance 2 is not None.
+
+Apply the same description and info-icon behaviour for each.
+
+For all selected optional insurances:
+
+Internally, map each option to its monthly cost (20, 40, or 30).
+
+This will be used in the summary calculation (next section).
+
+7. Monthly installment calculation and summary card
+
+We need to calculate and display:
+
+The base monthly installment for the loan (principal only).
+
+The total cost of optional insurances per month.
+
+The total monthly payment (installment + insurances).
+
+The due day of the month and first due date.
+
+Base installment calculation:
+
+Use the standard fixed-payment formula used in US credit products:
+
+Let:
+
+P = loan principal (numeric Loan value).
+
+APR = 14% (0.14).
+
+r = monthly interest rate = APR / 12.
+
+n = number of installments.
+
+Monthly payment (principal + interest) is:
+payment = P * r / (1 - (1 + r)^(-n))
+
+Implement this calculation in a small helper function inside the component.
+
+Recalculate whenever:
+
+Loan value changes (valid value).
+
+Number of installments changes.
+
+If any required input is missing or invalid, show -- or $0.00 in the summary instead of a numeric result.
+
+Insurance monthly total:
+
+For Optional insurance 1/2/3:
+
+Sum the monthly premiums of the selected options (ignore “None”).
+
+For example, if the user selects Work Loss and Income Insurance, total insurances = 20 + 30 = 50.
+
+Borrower’s Insurance (Credit Life) can be listed but considered $0 extra for now.
+
+Total monthly payment:
+
+totalMonthlyPayment = baseMonthlyPayment + insuranceMonthlyTotal.
+
+Format as currency.
+
+Summary card at the bottom of the form:
+
+Add a dedicated card or panel titled Summary.
+
+Inside it, show something like:
+
+Base monthly installment: $X,XXX.XX
+
+Optional insurances (per month): $YYY.YY
+
+Total monthly payment: $Z,ZZZ.ZZ
+
+First payment date: <formatted date> (if selected)
+
+Due day of month: <day number> (derived from first payment date)
+
+Interest rate: 14% APR
+
+Use the same currency formatting helper for all amounts.
+
+Update this summary reactively when inputs change.
+
+8. Validation on Save & Exit
+
+When the user clicks Save & Exit:
+
+Validate all required fields in the Loan Details tab:
+
+Loan value within [500, 50000].
+
+Loan type selected.
+
+Interest rate present (even though read-only).
+
+Number of installments selected.
+
+First payment date valid (within 60 days and day <= 15).
+
+Loan goal selected.
+
+Borrower’s insurance Yes/No selected.
+
+Show red error messages under each field that fails validation (reusing any existing error pattern you already implemented).
+
+If there are validation errors, do not navigate away.
+
+If everything is valid:
+
+Log the loan configuration for the active member to the console (you may store it in the proposal store if that structure is already in place).
+
+Keep the existing behaviour of the Save & Exit button (navigate back to home/dashboard).
+
+9. Tabs inside the member form (just to confirm)
+
+Keep the Loan Details / Personal Data / Business Data / Financials (P&L) tabs exactly as they are.
+
+Ensure Loan Details is the first tab and is styled as the active tab by default when opening Product Configuration.
+
+All the behaviours and UI changes requested above apply only to the Loan Details tab.
+
+Please implement these changes in client/src/pages/ProductConfigScreen.tsx (and any small helpers you need nearby). Reuse existing styling patterns and components from the app for consistency, especially for dropdowns and validation messages.
+
+FIM DO PROMPT
+

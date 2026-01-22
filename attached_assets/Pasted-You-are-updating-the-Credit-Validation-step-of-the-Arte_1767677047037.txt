@@ -1,0 +1,98 @@
+You are updating the **Credit Validation** step of the Artemis Hunting MVP flow.
+
+Do NOT change the existing UI layout or styling of this screen (member cards, statuses, buttons).  
+Only implement the navigation and enable/disable logic described below.
+
+The screen currently has:
+- A list of members with validation results (Approved / Denied / Pending).
+- A bottom bar with two buttons:
+  - `Edit Proposal`
+  - `Continue to Product Config`
+
+Assume there is a previous step (New Proposal screen) and an initial Dashboard/Home screen.
+
+---
+
+## 1) Edit Proposal must return to the previous screen with data preserved
+
+Current issue:
+- Clicking **Edit Proposal** may reset data or not correctly return to the data entry step.
+
+Required behavior:
+
+1. When the user clicks **Edit Proposal**:
+   - Navigate back to the **New Proposal** screen (the step where the members’ names, amounts and documents are entered).
+   - All member data previously entered (names, requested amounts, document type, document number, group members) must still be present and editable.
+   - The user should be editing the **same proposal instance**, not starting a new one.
+
+2. Implementation guidance:
+
+   - Store the proposal and member data in a shared state that survives navigation, for example:
+     - React context, or
+     - A parent component that manages both steps and passes props, or
+     - Any existing global store the app is already using.
+   - Do NOT reinitialize the members array when navigating back via Edit Proposal.
+   - After the user updates the data and clicks `Create Proposal` again, the flow should return to the Credit Validation step and re-run the simulated validations with the updated data.
+
+---
+
+## 2) Behavior when all members are denied and then removed
+
+Use the existing logic that allows **removing members** from the Credit Validation screen (e.g., for denied members).
+
+Required behavior:
+
+1. If **all members have been denied** and the user chooses to remove every one of them (one by one):
+
+   - After the last member is removed and there are **no members left** in the proposal:
+     - Navigate the user back to the **Dashboard / Home** screen (the initial app screen).
+     - Optionally, clear the current proposal state, since there is no proposal left.
+
+2. In other words:
+   - When the members list becomes empty on the Credit Validation screen, automatically route back to the home/dashboard route (e.g. `/` or the existing dashboard path).
+
+---
+
+## 3) Enabling / disabling “Continue to Product Config”
+
+We must control the **Continue to Product Config** button based on the validation results of the members.
+
+Definitions:
+
+- Each member has an overall status derived from the checks:
+  - `Approved`
+  - `Denied`
+  - `In Progress` (or `Pending`) – while checks are still running.
+
+Required behavior:
+
+1. The **Continue to Product Config** button should be **disabled** when:
+   - There is at least one member with status `Denied`, OR
+   - There is at least one member whose validation is still `Pending` / `In Progress`.
+
+2. The **Continue to Product Config** button should be **enabled** only when:
+   - There is **at least one member**, AND
+   - **All** remaining members have status `Approved` (no `Denied`, no `Pending`).
+
+3. Specific scenario requested:
+
+   - If there is at least one denied member and at least one approved member:
+     - The button **must remain disabled**.
+     - The user must remove all denied members from the proposal on this screen before they can proceed.
+     - Once all denied members have been removed and all remaining members are approved, the button becomes enabled.
+
+4. When the user clicks **Continue to Product Config**:
+   - Only allow navigation to the next step (Product Config screen) if the button is enabled (i.e., all remaining members are approved).
+   - If the button is disabled, the click should do nothing (or at most show a subtle explanation).
+
+Implementation guidance:
+
+- Compute a derived state, for example:
+
+  ```js
+  const hasMembers = members.length > 0;
+  const hasDenied = members.some(m => m.status === "denied");
+  const hasPending = members.some(m => m.status === "pending" || m.status === "in_progress");
+  const allApproved = hasMembers && !hasDenied && !hasPending;
+
+  const canContinue = allApproved;

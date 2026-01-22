@@ -1,0 +1,107 @@
+You are fixing THREE specific issues on the **New Proposal** screen of the Artemis Hunting MVP app.  
+Do NOT change the overall layout or add new features. Only adjust the behavior and styling described below.
+
+The screen already has:
+- Member tabs (Member 1, Member 2, etc.)
+- First / Middle / Last Name
+- Requested Amount ($)
+- ID Document Type (dropdown)
+- Document Number
+- A delete (x) icon on each member tab that currently shows a confirmation dialog.
+
+---
+
+## 1) Fix Requested Amount ($) input behavior
+
+Current problems:
+- When the user types zeros at the end of the number, the field does not accept them correctly (e.g., trying to enter 50000 results in `0.05` or similar).
+- When the value exceeds 50,000, the field automatically changes the value, which is confusing.
+
+Required behavior:
+
+1. Let the user type any numeric value they want (digits and optionally a decimal point), including trailing zeros.  
+   - Do NOT aggressively reformat the value while the user is typing in a way that changes the meaning.
+   - You may apply currency formatting **on blur** (when the input loses focus) instead of on every keystroke to avoid interfering with typing.
+
+2. Currency formatting:
+   - Display the value as a US dollar amount when formatted, for example:
+     - User types `50000` → on blur, the field shows `$50,000.00`.
+   - Internally, keep the numeric value (e.g. `50000`) for validation.
+
+3. Maximum loan amount:
+   - The maximum allowed value is 50,000.
+   - **Do NOT automatically change the value** if the user enters more than 50,000.
+   - Instead, if the numeric value is greater than 50000:
+     - Keep what the user typed.
+     - Show a validation error message below the field such as:
+       - `Maximum loan amount is $50,000.`
+     - Prevent form submission until the user corrects the value.
+
+4. Required:
+   - The field is required and must be greater than 0.
+   - If empty or 0, show the existing "required" style/error.
+
+In short: allow the user to type freely (including zeros), format nicely, and only use an **error message** to enforce the 50,000 limit instead of clamping or rewriting the value to 0.05 or 50,000.
+
+---
+
+## 2) Improve readability of the ID Document Type dropdown (selected/hover colors)
+
+Current problem:
+- The dropdown uses very light colors, so the selected option and hover states are hard to read against the background.
+
+Required changes:
+
+1. Update the dropdown menu styling so that:
+   - The menu background is a solid light color (e.g. white or very light gray).
+   - The text color of options is a dark, high-contrast color (e.g. the same dark text used in the rest of the app).
+   - The **selected** option has a clearly visible background (for example, a light blue) with dark text.
+   - The **hovered** option also has a visible background highlight.
+
+2. Make sure the currently selected option in the closed state of the select:
+   - Is easy to read (dark text on light background).
+   - Does not use a washed-out color.
+
+Do not change the list of options or their labels, only the colors / styles so that the selected value is clearly legible.
+
+---
+
+## 3) Only show the “remove member” confirmation when there is data
+
+Current behavior:
+- Clicking the `x` on a member tab always shows a confirmation dialog (`Are you sure you want to remove this member from the group?`), even if all fields are empty.
+
+Required behavior:
+
+1. Before showing the confirmation dialog, check if the member has **any required field filled**.
+
+   Required fields per member are:
+   - First Name
+   - Last Name
+   - Requested Amount ($)
+   - ID Document Type
+   - Document Number
+
+2. Logic:
+
+   - If **all** these fields for that member are empty / unset (e.g. empty string, null, or default value):
+     - Remove the member **immediately without any confirmation dialog**.
+   - If **any** of these fields has been filled (user entered something):
+     - THEN show the confirmation dialog:
+       - `Are you sure you want to remove this member from the group?`
+     - Only remove the member if the user confirms.
+
+3. Keep existing rules:
+   - Do not allow deleting the last remaining member (there must always be at least one member).
+   - When a member is deleted, switch the active tab to a remaining member (e.g. previous or first).
+
+Implementation hint:
+- Assuming you store members in an array like `members[index]`, compute something like:
+
+  ```js
+  const hasData =
+    !!member.firstName ||
+    !!member.lastName ||
+    !!member.requestedAmount ||
+    !!member.documentType ||
+    !!member.documentNumber;

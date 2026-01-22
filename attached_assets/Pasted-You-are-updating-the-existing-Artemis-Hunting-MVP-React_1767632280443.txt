@@ -1,0 +1,108 @@
+You are updating the existing **Artemis Hunting MVP** React dashboard.  
+Use the current layout and structure exactly as it is in the latest version (header, KPIs row, Pipeline Overview cards, New Proposal button). Do NOT move or resize the main components. Only apply the following changes:
+
+---
+
+## 1. Add a "Priorities" icon in the header
+
+In the top header area, between the **search bar** and the **notification bell**, add a new icon button for **“Priorities”**.
+
+Requirements:
+
+1. The icon should visually represent a **task list or checklist**:
+   - For example, use a list icon or a check-list icon from the same icon library currently used (e.g. `react-icons`).
+   - Style it similarly to the notification bell: small circular/rounded button, same height, same hover behavior.
+
+2. Position:
+   - Place this new icon immediately to the **right** of the search bar.
+   - The order from left to right in the header should be:
+     - Search bar
+     - **Priorities icon**
+     - Notification bell icon
+     - User avatar/profile.
+
+3. Indicator for pending priorities:
+   - Add a small **orange badge/dot** on the top-right corner of the Priorities icon to indicate that there are pending tasks.
+   - The dot should:
+     - Be circular (border-radius: 50%),
+     - Use the Artemis accent color in the orange/yellow family (same tone used in the “Under Eval” or Renewals styles),
+     - Be similar in size and style to the notification badge used for the bell (if any).
+
+4. Interaction:
+   - For now, when the user clicks the Priorities icon, you can:
+     - either navigate to an existing or new placeholder screen (e.g. `Today's Priorities`), or
+     - show a simple placeholder panel or console log.
+   - The important part is that the icon is clickable and clearly represents **“Today’s priorities / tasks to review”**.
+
+---
+
+## 2. Add orange “action dots” on specific Pipeline Overview cards
+
+In the **Pipeline Overview** section on the dashboard, keep the existing cards exactly as they are (labels, counts, colors, and positions).  
+Add a small **orange circular indicator** only on the cards where the agent has a direct action:
+
+- **On Going**
+- **Renewals**
+- **Collections**
+
+The **Under Eval** and **Completed** cards must NOT have this indicator.
+
+Details for the orange action dots:
+
+1. Visual:
+   - Small circle (e.g. 8–10px diameter),
+   - Color: use an orange tone consistent with the brand (same family as the accent used for warnings/priority),
+   - `border-radius: 50%`.
+
+2. Position:
+   - Place the dot near the **top-left area** of each of these cards, in a way that looks intentional but subtle:
+     - e.g. aligned near the card title (On Going / Renewals / Collections), slightly to the left of the text.
+   - Make sure it does not overlap the main number or icon.
+
+3. Semantics:
+   - These dots indicate stages where the **credit agent has direct daily actions**:
+     - On Going → prospecting / finishing proposals,
+     - Renewals → renew contracts,
+     - Collections → perform collections on delinquent clients.
+   - For now, the dots are purely visual indicators (no extra behavior needed).
+
+---
+
+## 3. Remove the colored status circles next to the KPI titles
+
+In the top row of KPI cards (Credit Portfolio, Active Clients, Delinquency Rate), there are currently small colored circles next to the titles (for example, a green or yellow dot after “CREDIT PORTFOLIO”, “ACTIVE CLIENTS”, “DELINQUENCY RATE”).
+
+These status circles should be **completely removed** from the UI.
+
+Requirements:
+
+1. Remove the DOM elements for these small dots from each KPI card.
+2. Remove any CSS styles specific to those dots, if they are no longer used.
+3. Keep everything else in the KPI cards exactly the same:
+   - Title text,
+   - Main value,
+   - “Target Progress” label and progress bar,
+   - Month-over-month comparison badge.
+
+The KPI cards should show only their text and progress, without any colored dot next to the title.
+
+---
+
+## 4. Do not change the main layout
+
+Important constraints:
+
+- Do NOT move the **New Proposal** button from its current position.
+- Do NOT change the structure, size, or order of:
+  - The header layout (logo, search bar, notification bell, profile),
+  - The three KPI cards row,
+  - The Pipeline Overview section and its 5 cards.
+- Only add:
+  - the new **Priorities** icon between the search bar and the bell,
+  - the orange action dots on **On Going**, **Renewals**, and **Collections** cards,
+  - and remove the colored KPI title dots as described.
+
+After these changes, the dashboard should look visually almost identical to the current version, but with:
+- a clear **Priorities** icon in the header,
+- orange action indicators on the stages where the agent acts directly,
+- and no extra colored circles next to the KPI titles.

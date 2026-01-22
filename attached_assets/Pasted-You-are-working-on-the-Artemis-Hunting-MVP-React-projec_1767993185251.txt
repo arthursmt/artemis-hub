@@ -1,0 +1,150 @@
+You are working on the Artemis Hunting MVP React project.
+
+Right now, the Product Configuration page still shows a placeholder instead of a real form. I want you to replace that placeholder with an actual **Loan Details** form for the current group member.
+
+## 1. Find the correct component
+
+1. Search the codebase for the string:
+
+   "Configuration forms for"
+
+   This text is currently rendered in the Product Configuration screen (e.g. "Configuration forms for adddfa").
+
+2. Identify the React component that renders this text. It is the component used by the `/product-config/:proposalId` route.
+
+3. **Do not** change the header, the dark banner with GROUP ID / LEADER, or the member tabs row. Only replace the placeholder card that currently shows the icon and the text "Configuration forms for ...".
+
+## 2. Replace the placeholder with a Loan Details form
+
+Inside that placeholder card, render a form with the following requirements:
+
+- At the top-left of the card, show a section title: `Loan Details`.
+- Under the title, use a **two-column layout** (CSS grid or flex) when there is enough horizontal space (tablet/desktop).
+- Use the same input styles and spacing that other forms in the app already use (rounded inputs, generous vertical spacing).
+
+### Fields to implement
+
+Implement these fields, with these labels and basic types:
+
+1. **Loan Value** (mandatory)
+   - Label: `Loan value ($)`
+   - HTML type: `number` (for now).
+   - This field is required.
+
+2. **Loan Type** (mandatory)
+   - Label: `Loan type`
+   - Implement as a `<select>` dropdown.
+   - Options:
+     - `Working capital`
+     - `Investment`
+     - `Other`
+   - This field is required.
+
+3. **Interest Rate** (mandatory)
+   - Label: `Interest rate (%)`
+   - HTML type: `number`.
+   - This field is required.
+
+4. **Number of Installments** (mandatory)
+   - Label: `Number of installments`
+   - HTML type: `number`.
+   - This field is required.
+
+5. **First Payment Date** (mandatory)
+   - Label: `First payment date`
+   - HTML type: `date`.
+   - This field is required.
+
+6. **Grace Period** (mandatory)
+   - Label: `Grace period (days)`
+   - HTML type: `number`.
+   - This field is required.
+
+7. **Loan Goal** (mandatory)
+   - Label: `Loan goal`
+   - Implement as a `<select>` dropdown.
+   - Options:
+     - `Inventory`
+     - `Equipment`
+     - `Working capital`
+     - `Debt consolidation`
+     - `Other`
+   - This field is required.
+
+8. **Other Goal** (optional)
+   - Label: `Other goal (optional)`
+   - HTML type: `text`.
+   - This field is optional.
+
+9. **Borrower's Insurance** (mandatory)
+   - Label: `Borrower's insurance`
+   - Implement as radio buttons or a toggle with two clear options:
+     - `Yes`
+     - `No`
+   - One of the options must be selected before saving.
+
+10. **Optional Insurance 1** (optional)
+    - Label: `Optional insurance 1`
+    - `<select>` with options:
+      - `None`
+      - `Life coverage`
+      - `Disability coverage`
+      - `Job loss coverage`
+    - Default: `None`.
+
+11. **Optional Insurance 2** (optional)
+    - Same structure as Optional insurance 1.
+
+12. **Optional Insurance 3** (optional)
+    - Same structure as Optional insurance 1.
+
+### Layout suggestion
+
+Use a layout roughly like this inside the card:
+
+- First row (two columns):
+  - Left: Loan value
+  - Right: Loan type
+
+- Second row:
+  - Left: Interest rate
+  - Right: Number of installments
+
+- Third row:
+  - Left: First payment date
+  - Right: Grace period
+
+- Fourth row:
+  - Left: Loan goal
+  - Right: Borrower's insurance
+
+- Below (full-width rows):
+  - Other goal (optional)
+  - Optional insurance 1
+  - Optional insurance 2
+  - Optional insurance 3
+
+Make sure there is enough vertical spacing between rows so the form feels spacious and easy to use on a tablet screen.
+
+## 3. State and validation (simple version)
+
+For this step, implement **simple** state and validation:
+
+1. Use React state in this component to hold the form values for the *currently selected member*.
+2. When the member tab changes, you can keep it simple for now:
+   - It is acceptable in this version if the values are not yet persisted per member.
+   - Later we will extend this to persist values per member and into the proposals store.
+
+3. Validation rules (simple):
+   - All fields marked as mandatory must not be empty.
+   - When the user clicks the existing `Save & Exit` button:
+     - Check required fields.
+     - If any required field is empty, show a small red error text under that field, e.g. `This field is required`, and do not navigate away.
+     - If all required fields are filled, you can log the data to the console and then keep the existing `Save & Exit` navigation behavior (navigate back as it already does).
+
+IMPORTANT:
+- Do not remove or rename the existing `Save & Exit` button.
+- Do not change other routes or screens.
+- The main goal of this change is: when I click “Continue to Product Config” and land on this page, I can actually type values into a **Loan Details form** instead of seeing a placeholder message.
+
+All labels and helper texts must remain in English.

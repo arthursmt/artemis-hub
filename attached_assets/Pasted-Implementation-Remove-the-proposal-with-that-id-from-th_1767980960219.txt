@@ -1,0 +1,165 @@
+Implementation:
+
+Remove the proposal with that id from the proposals array.
+
+Update state so that any screen subscribed to the context re-renders.
+
+You do NOT need to implement archival; just a hard delete from the local store for now.
+
+2) Update the Actions column on the On Going Proposals list
+
+On the On Going Proposals screen (the table view at /ongoing):
+
+Keep the existing "Keep filling" action.
+
+Add two more actions per row:
+
+"View details"
+
+"Delete"
+
+Suggested layout (but keep existing design language):
+
+Primary action: a button or pill labeled "Keep filling".
+
+Below or next to it:
+
+A subtle text button/link "View details".
+
+A text button/link "Delete" styled in a danger color (e.g. red).
+
+All labels must be in English, exactly: "Keep filling", "View details", "Delete".
+
+3) Delete behavior with confirmation
+
+When the user clicks "Delete" for a given proposal row:
+
+Show a confirmation dialog/modal (use the browser window.confirm or a custom modal, depending on what the app already uses), with text similar to:
+
+Title: Delete proposal
+
+Message:
+Are you sure you want to delete this proposal? This will remove all related data and cannot be undone.
+
+If the user confirms:
+
+Call deleteProposal(proposal.id) from the ProposalsContext.
+
+The row must disappear from the On Going Proposals table.
+
+If this was the last proposal, show an empty state message like:
+
+No ongoing proposals at the moment.
+
+If the user cancels:
+
+Do nothing.
+
+This delete must affect only the local proposals store (no backend yet).
+
+4) Proposal details view ("View details")
+
+You must implement a Proposal Details view to show the group and member details.
+
+You can choose one of these patterns (whichever fits the current routing best):
+
+A new route: e.g. /ongoing/:proposalId/details
+
+OR a full-screen overlay/modal on top of the On Going list.
+
+The simplest option is a new route with a back arrow, similar style to other pages.
+I will describe it as a separate screen:
+
+4.1. Navigation
+
+When the user clicks "View details" in the Actions column:
+
+Navigate to a details screen with the proposal id in the route, for example:
+
+/ongoing/${proposal.id}/details.
+
+On the details screen:
+
+Include a back arrow/button at the top-left that returns to the On Going Proposals list (/ongoing).
+
+4.2. Data loading
+
+The details screen must:
+
+Read proposalId from the route params.
+
+Use getProposalById(proposalId) from the ProposalsContext.
+
+If the proposal does not exist (e.g. deleted) → redirect back to /ongoing or show a simple error.
+
+4.3. Layout and fields
+
+The Proposal Details view should show:
+
+Header section (card-style):
+
+Group ID – show proposal.groupId or "--" if not available.
+
+Leader – show proposal.leaderName (this should always exist).
+
+Total Amount – show proposal.totalAmount formatted as currency.
+
+Date Created – show proposal.dateCreated formatted as in the table.
+
+Members section – a simple list or table for each member in proposal.data.group.members.
+
+For each member row, display:
+
+Member name – First Name + Last Name (or "--" if missing).
+
+Primary phone – use the first contact phone from that member’s personal data; if not present, show "--".
+
+Requested amount – the member’s requested loan amount (from the loan proposal or original requested amount); if missing, show "--".
+
+Address – combine the available address fields, for example:
+
+Address Line 1, Address Line 2, City, State, ZIP
+
+If you cannot build a readable string because everything is empty, show "--".
+
+Label everything in English, for example:
+
+Section titles: Group details, Members.
+
+Column titles: Name, Primary phone, Requested amount, Address.
+
+4.4. Handling missing data
+
+You must respect this rule:
+
+When a certain field does not have data, show "--" (two dashes) instead of leaving it blank or showing null/undefined.
+
+Examples:
+
+Missing phone → "--"
+
+Missing address line → can be omitted from the concatenated address string, but if the entire address is empty, show "--".
+
+Missing requested amount → "--"
+
+5) Summary of required behavior
+
+After your changes, the On Going Proposals flow must support:
+
+A Keep filling action (existing) that reopens Product Configuration for that proposal.
+
+A View details action that navigates to a Proposal Details screen and shows:
+
+Group ID, leader, total amount, date created.
+
+Member list: name, primary phone, requested amount, address, using "--" when data is not available.
+
+A Delete action that:
+
+Asks for confirmation,
+
+Deletes the proposal and all related data from the local proposals store when confirmed,
+
+Updates the table immediately, and shows an empty state message if there are no more ongoing proposals.
+
+All UI text for these new elements must be in English.
