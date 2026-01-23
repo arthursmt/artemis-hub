@@ -9,6 +9,12 @@ What this repo *does*:
 - Centralizes **API contracts**, **environment variables**, and **setup checklists**
 - Works as the “single entry point” for recruiters/reviewers to understand the product journey
 
+## Documentation
+- Functional E2E flow: `docs/functional-flow.md`
+- Technical contracts: `docs/technical-contracts.md`
+- API contracts (source of truth narrative): `docs/api-contracts.md`
+- E2E runbook: `docs/e2e-runbook.md`
+
 ---
 
 ## 1) Ecosystem Overview
