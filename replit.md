@@ -47,6 +47,27 @@ The `shared/` directory contains code used by both frontend and backend:
 3. **Component Library**: shadcn/ui provides accessible, customizable components that follow Radix UI patterns
 4. **Path Aliases**: TypeScript path aliases (`@/`, `@shared/`) for clean imports
 
+## Artemis Hub Launcher
+
+The application includes a launcher interface for accessing external Artemis applications (Hunt/Gate) via iframes.
+
+### Routes
+- `/` - Launcher home with buttons for Hunt and Gate
+- `/hunt` - Embedded Hunt application (requires VITE_HUNT_URL)
+- `/gate` - Embedded Gate application (requires VITE_GATE_URL)
+- `/dashboard` - Original dashboard for credit portfolio management
+- `/api/health` - Health check endpoint returning app status
+
+### Environment Variables
+- `VITE_HUNT_URL` - Public URL for the Hunt application
+- `VITE_GATE_URL` - Public URL for the Gate application
+
+### Fallback Behavior
+When an external app URL is not configured or the iframe fails to load:
+- Shows clear "App URL Not Configured" message
+- Provides "Open in Same Tab" and "Open in New Tab" buttons
+- "Back to Hub" navigation always available
+
 ## External Dependencies
 
 ### Database
