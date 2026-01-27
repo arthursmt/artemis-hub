@@ -41,6 +41,32 @@ export async function registerRoutes(
     }
   });
 
+  // Proposal submit endpoint with diagnostic logging
+  app.post("/api/proposals/submit", async (req, res) => {
+    const contentLength = req.headers['content-length'] || 'unknown';
+    console.log(`[HUNT SUBMIT] Received request - Content-Length: ${contentLength} bytes`);
+    console.log(`[HUNT SUBMIT] Body keys: ${Object.keys(req.body || {}).join(', ')}`);
+    
+    try {
+      // For now, just acknowledge receipt - actual Arise integration would go here
+      const bodySize = JSON.stringify(req.body).length;
+      console.log(`[HUNT SUBMIT] Parsed body size: ${bodySize} bytes`);
+      
+      res.status(201).json({
+        success: true,
+        message: "Proposal submitted successfully",
+        receivedBytes: contentLength,
+        parsedBytes: bodySize,
+      });
+    } catch (err: any) {
+      console.error(`[HUNT SUBMIT] Error:`, err);
+      res.status(500).json({
+        success: false,
+        message: err.message || "Internal server error",
+      });
+    }
+  });
+
   // Contracts
   app.get(api.contracts.list.path, async (req, res) => {
     const contracts = await storage.getContracts();

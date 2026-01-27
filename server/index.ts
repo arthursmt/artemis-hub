@@ -29,14 +29,14 @@ app.use((_req, res, next) => {
 
 app.use(
   express.json({
-    limit: '25mb',
+    limit: '50mb',
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false, limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
