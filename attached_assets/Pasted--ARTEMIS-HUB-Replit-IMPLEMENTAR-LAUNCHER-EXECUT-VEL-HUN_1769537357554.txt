@@ -1,0 +1,57 @@
+# ARTEMIS HUB (Replit) — IMPLEMENTAR LAUNCHER EXECUTÁVEL (HUNT <-> GATE) COM IFRAME + FALLBACK
+# Repo alvo: artemis-hub (Replit do Hub). NÃO alterar Hunt/Gate/Arise.
+
+OBJETIVO
+Criar no Hub uma demo executável acessível via https://artemis-hub.replit.app/ com:
+- Home "/" com 2 botões: "Open Hunt" e "Open Gate"
+- Rotas "/hunt" e "/gate" que exibem o respectivo app (Hunt/Gate) dentro de um iframe
+- Em "/hunt" e "/gate" deve existir um botão claro "← Back to Hub" que volta para "/"
+- Fallback: se iframe não puder carregar (CSP/X-Frame-Options), mostrar botão "Open in same tab" (redirect) e "Open in new tab"
+
+RESTRIÇÕES / PRINCÍPIOS
+- Não mover código do Hunt/Gate para dentro do Hub.
+- O Hub apenas referencia as URLs publicadas dos Replits de Hunt/Gate via env vars.
+- Não expor tokens em frontend.
+- Mudanças mínimas e claras.
+
+SECRETS / ENV VARS (Replit → Tools → Secrets)
+- HUNT_URL="https://<hunt>.replit.app"   (URL pública)
+- GATE_URL="https://<gate>.replit.app"   (URL pública)
+- (opcional) ARISE_BASE_URL="https://<arise>.replit.app"
+
+IMPLEMENTAÇÃO (preferir React + Vite se o Hub já for React; caso contrário, criar React + Vite)
+1) Detectar stack atual do hub:
+   - Se já existe Vite/React, reaproveitar.
+   - Se não existe, inicializar Vite React (TypeScript se já estiver).
+2) Implementar rotas com React Router:
+   - "/"  -> HomeLauncher
+   - "/hunt" -> EmbeddedAppPage type="hunt"
+   - "/gate" -> EmbeddedAppPage type="gate"
+3) Layout:
+   - Barra superior fixa (top) com título "Artemis Hub Demo" e botão "Back to Hub" quando não estiver em "/"
+   - Área principal com iframe (100% width/height do restante da tela)
+4) Iframe:
+   - src = HUNT_URL ou GATE_URL
+   - sandbox permissivo o suficiente para apps SPA:
+     sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"
+   - Mostrar loading spinner simples
+   - Detectar falha (heurística): se iframe não disparar onLoad em X segundos, mostrar fallback UI com botões de redirect
+5) Health:
+   - Criar endpoint simples no próprio Hub (se houver backend) OU página "/health" no front.
+   - Ideal: se o hub já tem server express, criar GET "/api/health" -> { ok: true, ts }
+   - Se for apenas front estático, criar rota "/health" exibindo "ok" e as URLs efetivas (sem segredos).
+
+ENTREGÁVEIS OBRIGATÓRIOS (FORMATO)
+A) FILES CHANGED (lista)
+B) PARA CADA ARQUIVO: bloco de código completo pronto para colar
+C) COMO RODAR NO REPLIT (passo a passo)
+D) COMO TESTAR PELA URL PÚBLICA (https://artemis-hub.replit.app/)
+E) RESULTADO ESPERADO (o que eu devo ver)
+
+CHECKLIST DE ACEITE
+- Ao abrir https://artemis-hub.replit.app/ vejo 2 botões (Hunt/Gate)
+- Clicando Hunt -> abre Hunt dentro do hub e aparece "Back to Hub"
+- Clicando Gate -> abre Gate dentro do hub e aparece "Back to Hub"
+- Se iframe falhar, aparece fallback com links que abrem o app em mesma aba/nova aba
+- Nenhum token aparece no UI
+- Tudo funciona sem Preview (somente via URL pública)
