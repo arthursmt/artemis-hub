@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
 // Pages
+import LauncherHome from "@/pages/LauncherHome";
+import EmbeddedAppPage from "@/pages/EmbeddedAppPage";
 import Home from "@/pages/Home";
 import OnGoingProposals from "@/pages/OnGoingProposals";
 import UnderEvaluationProposals from "@/pages/UnderEvaluationProposals";
@@ -22,7 +24,13 @@ import { ProposalProvider } from "@/lib/proposalStore";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      {/* Launcher Routes */}
+      <Route path="/" component={LauncherHome} />
+      <Route path="/hunt">{() => <EmbeddedAppPage type="hunt" />}</Route>
+      <Route path="/gate">{() => <EmbeddedAppPage type="gate" />}</Route>
+      
+      {/* Dashboard Routes */}
+      <Route path="/dashboard" component={Home} />
       <Route path="/ongoing" component={OnGoingProposals} />
       <Route path="/under-evaluation" component={UnderEvaluationProposals} />
       <Route path="/completed" component={CompletedProposals} />

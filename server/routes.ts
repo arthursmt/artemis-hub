@@ -9,6 +9,16 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({
+      ok: true,
+      ts: new Date().toISOString(),
+      huntUrl: process.env.VITE_HUNT_URL ? "[configured]" : "[not set]",
+      gateUrl: process.env.VITE_GATE_URL ? "[configured]" : "[not set]",
+    });
+  });
+
   // Proposals
   app.get(api.proposals.list.path, async (req, res) => {
     const proposals = await storage.getProposals();
