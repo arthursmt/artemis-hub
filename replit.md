@@ -52,20 +52,26 @@ The `shared/` directory contains code used by both frontend and backend:
 The application includes a launcher interface for accessing external Artemis applications (Hunt/Gate) via iframes.
 
 ### Routes
-- `/` - Launcher home with buttons for Hunt and Gate
-- `/hunt` - Embedded Hunt application (requires VITE_HUNT_URL)
-- `/gate` - Embedded Gate application (requires VITE_GATE_URL)
+- `/` - Launcher home with buttons for Hunt and Gate, shows effective URLs and dev warnings
+- `/hunt` - Embedded Hunt application with iframe + fallback buttons
+- `/gate` - Embedded Gate application with iframe + fallback buttons
+- `/config` - Configuration page showing URL status and setup instructions
+- `/health` - Health check page showing JSON status with URLs
 - `/dashboard` - Original dashboard for credit portfolio management
-- `/api/health` - Health check endpoint returning app status
+- `/api/health` - Backend health check endpoint
 
 ### Environment Variables
-- `VITE_HUNT_URL` - Public URL for the Hunt application
-- `VITE_GATE_URL` - Public URL for the Gate application
+- `VITE_HUNT_URL` - Public URL for the Hunt application (optional, has default)
+- `VITE_GATE_URL` - Public URL for the Gate application (optional, has default)
+
+### Default URLs (Dev)
+- Hunt: `https://40fad382-f5d0-41ed-8319-8b14ccbaa38f-00-1a4f4ivx6fwg5.worf.replit.dev/`
+- Gate: `https://f89dbced-a4ab-49cf-a512-fa784ea45cca-00-3uhhyzamtriym.riker.replit.dev/`
 
 ### Fallback Behavior
-When an external app URL is not configured or the iframe fails to load:
-- Shows clear "App URL Not Configured" message
-- Provides "Open in Same Tab" and "Open in New Tab" buttons
+- 8-second timeout for iframe loading
+- If iframe fails: shows "Embedding Blocked" message with "Open in Same Tab" and "Open in New Tab" buttons
+- Dev URL warning (.replit.dev) shown on home page and config page
 - "Back to Hub" navigation always available
 
 ## External Dependencies
