@@ -75,6 +75,39 @@ interface ProposalContextType {
 
 const ProposalContext = createContext<ProposalContextType | undefined>(undefined);
 
+interface LightweightProposalSummary {
+  id: string;
+  status: string;
+  leaderName: string;
+  membersCount: number;
+  totalAmount: number;
+  updatedAt: string;
+}
+
+function createLightweightSummary(proposal: ProposalWithData): LightweightProposalSummary {
+  return {
+    id: String(proposal.id),
+    status: proposal.status,
+    leaderName: proposal.leaderName || proposal.clientName || "Unknown",
+    membersCount: proposal.data?.group?.members?.length || 1,
+    totalAmount: proposal.totalAmount || 0,
+    updatedAt: proposal.updatedAt?.toISOString?.() || new Date().toISOString(),
+  };
+}
+
+function safeLocalStorageWrite(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn("[HUNT] localStorage quota exceeded, clearing cache:", error);
+    try {
+      localStorage.removeItem(key);
+    } catch (clearError) {
+      console.warn("[HUNT] Failed to clear localStorage:", clearError);
+    }
+  }
+}
+
 export const ProposalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [proposals, setProposals] = useState<ProposalWithData[]>(() => {
     const saved = localStorage.getItem("artemis_proposals");
@@ -82,7 +115,8 @@ export const ProposalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   useEffect(() => {
-    localStorage.setItem("artemis_proposals", JSON.stringify(proposals));
+    const summaries = proposals.map(createLightweightSummary);
+    safeLocalStorageWrite("artemis_proposals", JSON.stringify(summaries));
   }, [proposals]);
 
   const createProposalFromGroup = (group: Group) => {

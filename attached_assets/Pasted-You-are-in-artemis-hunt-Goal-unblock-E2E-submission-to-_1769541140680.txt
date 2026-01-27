@@ -1,0 +1,41 @@
+You are in artemis-hunt. Goal: unblock E2E submission to Arise. Current failure:
+- localStorage quota exceeded storing "artemis_proposals"
+- submit request to /api/proposals/submit returns 413 Request Entity Too Large
+
+Do NOT refactor the whole app. Make minimal, explicit changes to:
+A) Prevent localStorage quota crash
+B) Prevent 413 on submit for demo
+
+A) localStorage quota fix (mandatory)
+- Find where proposals are persisted to localStorage key "artemis_proposals" (error points to client/src/lib/proposalStore.tsx around the shown line).
+- Change persistence to store ONLY a lightweight summary list (no photos, no base64, no signatures, no large blobs).
+  Example stored shape:
+  [{ id, status, leaderName, membersCount, totalAmount, updatedAt }]
+- Keep the in-memory full proposal state unchanged.
+- Add a try/catch around localStorage writes; on quota error, gracefully clear the stored cache and continue without crashing.
+
+B) 413 fix (mandatory)
+- Identify what handles POST /api/proposals/submit in this repo:
+  - If there is a backend/proxy server in this repo, increase JSON/body size limits to at least 25mb.
+    * Express example: express.json({limit:'25mb'}) and urlencoded({limit:'25mb'})
+    * Fastify example: bodyLimit config
+  - If /api/proposals/submit is called directly to Arise from the browser, then reduce payload size by stripping heavy fields (photos/signatures/base64) before sending for the MVP demo.
+    Implement a function like:
+      function stripHeavyFields(payload) { remove evidence binaries; keep metadata only }
+    and use it ONLY for the submit call (keep UI data intact).
+
+C) Add diagnostics (mandatory)
+- Right before submit, log:
+  console.log("[HUNT SUBMIT] bytes=", new Blob([JSON.stringify(payloadToSend)]).size)
+  console.log("[HUNT SUBMIT] keys=", Object.keys(payloadToSend))
+- If response is 413, show a UI toast that includes the computed bytes size.
+
+Deliverables:
+1) FILES CHANGED (paths)
+2) For each file: full code blocks ready to paste
+3) Where submit happens today (file + exact line ranges)
+4) How to test:
+   - Open Hunt, create proposal, attach minimal photo (or none), submit
+   - Confirm network request succeeds (200/201)
+   - Confirm no localStorage quota crash
+5) Expected result: proposal submitted successfully and visible in Gate inbox (once Gate points to same Arise).
