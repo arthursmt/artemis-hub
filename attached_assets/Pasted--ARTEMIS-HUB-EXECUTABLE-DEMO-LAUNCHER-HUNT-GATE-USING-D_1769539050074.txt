@@ -1,0 +1,83 @@
+# ARTEMIS HUB — EXECUTABLE DEMO LAUNCHER (HUNT <-> GATE) USING DEV URLS + CONFIG + FALLBACK
+# Target Replit: artemis-hub (ONLY). Do not modify Hunt/Gate/Arise code.
+
+CONTEXT
+We must run the E2E demo from the public Hub URL: https://artemis-hub.replit.app/
+Replit preview cannot be used for proof, so testing must be done from the published hub URL.
+Hunt and Gate are separate frontends with their own Replits; the Hub is the entry point and navigator.
+
+IMPORTANT NOTE ABOUT DEV URLS
+The current Hunt/Gate URLs are Dev URLs (.replit.dev) and can sleep / change.
+So implement:
+- iframe embed when possible
+- fallback redirect buttons always
+- /config page to show the effective URLs and warn if using Dev URLs
+
+ACTUAL URLs PROVIDED (use as defaults if env vars are missing)
+GATE Dev URL:
+https://f89dbced-a4ab-49cf-a512-fa784ea45cca-00-3uhhyzamtriym.riker.replit.dev/
+
+HUNT Dev URL:
+https://40fad382-f5d0-41ed-8319-8b14ccbaa38f-00-1a4f4ivx6fwg5.worf.replit.dev/
+
+ENV VARS (Replit → Tools → Secrets)
+- HUNT_URL (optional override; if missing use the provided Hunt Dev URL)
+- GATE_URL (optional override; if missing use the provided Gate Dev URL)
+
+GOAL (FEATURES)
+1) Home "/" page:
+- Two buttons: "Open Hunt" and "Open Gate"
+- A small status area showing:
+  - effective Hunt URL
+  - effective Gate URL
+  - if URL is a dev URL (.replit.dev), show a warning "Dev URL may sleep"
+- Link to "/config"
+
+2) /config page:
+- Show effective HUNT_URL and GATE_URL (from env or default)
+- Show clear warnings:
+  - If URL contains ".replit.dev" -> warn it may sleep and suggest switching to published ".replit.app"
+- Show instructions (click-by-click):
+  - Replit Hub → Tools → Secrets → add HUNT_URL / GATE_URL → rerun
+
+3) /hunt and /gate pages:
+- Top bar with:
+  - "← Back to Hub" button (goes to "/")
+  - "Open in same tab" (redirect to the external URL)
+  - "Open in new tab" (window.open)
+- Main area tries to embed the app in an iframe:
+  - iframe src = effective URL
+  - sandbox: allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation
+  - show "Loading..." state
+- Fallback if iframe likely fails:
+  - If iframe doesn't fire onLoad within 8 seconds, show a prominent message:
+    "Embedding blocked. Use open buttons above."
+  - Still keep the iframe (in case it loads later), but ensure user can continue.
+
+4) Health (simple sanity check):
+- Provide /health (frontend route) that renders JSON-ish text:
+  - ok: true
+  - ts: new Date
+  - huntUrl, gateUrl
+
+IMPLEMENTATION APPROACH
+- Reuse existing stack in artemis-hub.
+- If it is a React/Vite app, use React Router and implement the pages above.
+- If it is not React, implement with the simplest approach available in the repo, but keep routes /, /hunt, /gate, /config, /health.
+
+NON-GOALS / SAFETY
+- Do not expose any tokens in the browser.
+- Do not modify Hunt or Gate repos.
+- Do not attempt to proxy Hunt/Gate through the hub backend (avoid complexity).
+
+DELIVERABLES (MANDATORY OUTPUT FORMAT)
+1) FILES CHANGED (paths)
+2) For each file: FULL code block ready to paste (no pseudocode)
+3) Click-by-click: how to run in Replit Hub (including setting Secrets)
+4) How to test using the public URL https://artemis-hub.replit.app/ (NOT preview)
+5) Expected behavior checklist:
+   - "/" shows two buttons and effective URLs
+   - "/hunt" shows embedded Hunt (or fallback) + Back to Hub
+   - "/gate" shows embedded Gate (or fallback) + Back to Hub
+   - "/config" explains Secrets and warns about .replit.dev
+   - "/health" shows ok + URLs

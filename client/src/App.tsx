@@ -8,6 +8,8 @@ import NotFound from "@/pages/not-found";
 // Pages
 import LauncherHome from "@/pages/LauncherHome";
 import EmbeddedAppPage from "@/pages/EmbeddedAppPage";
+import ConfigPage from "@/pages/ConfigPage";
+import HealthPage from "@/pages/HealthPage";
 import Home from "@/pages/Home";
 import OnGoingProposals from "@/pages/OnGoingProposals";
 import UnderEvaluationProposals from "@/pages/UnderEvaluationProposals";
@@ -28,6 +30,8 @@ function Router() {
       <Route path="/" component={LauncherHome} />
       <Route path="/hunt">{() => <EmbeddedAppPage type="hunt" />}</Route>
       <Route path="/gate">{() => <EmbeddedAppPage type="gate" />}</Route>
+      <Route path="/config" component={ConfigPage} />
+      <Route path="/health" component={HealthPage} />
       
       {/* Dashboard Routes */}
       <Route path="/dashboard" component={Home} />

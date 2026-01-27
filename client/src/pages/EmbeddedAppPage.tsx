@@ -8,28 +8,32 @@ interface EmbeddedAppPageProps {
   type: "hunt" | "gate";
 }
 
+const DEFAULT_HUNT_URL = "https://40fad382-f5d0-41ed-8319-8b14ccbaa38f-00-1a4f4ivx6fwg5.worf.replit.dev/";
+const DEFAULT_GATE_URL = "https://f89dbced-a4ab-49cf-a512-fa784ea45cca-00-3uhhyzamtriym.riker.replit.dev/";
+
 const APP_CONFIG = {
   hunt: {
     title: "Hunt",
-    envVar: "VITE_HUNT_URL",
-    fallbackUrl: "",
-    color: "amber",
+    defaultUrl: DEFAULT_HUNT_URL,
   },
   gate: {
     title: "Gate",
-    envVar: "VITE_GATE_URL", 
-    fallbackUrl: "",
-    color: "cyan",
+    defaultUrl: DEFAULT_GATE_URL,
   },
 };
 
-const LOAD_TIMEOUT_MS = 10000;
+const LOAD_TIMEOUT_MS = 8000;
+
+function getEffectiveUrl(type: "hunt" | "gate"): string {
+  const envUrl = type === "hunt" 
+    ? import.meta.env.VITE_HUNT_URL 
+    : import.meta.env.VITE_GATE_URL;
+  return envUrl || APP_CONFIG[type].defaultUrl;
+}
 
 export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
   const config = APP_CONFIG[type];
-  const appUrl = type === "hunt" 
-    ? import.meta.env.VITE_HUNT_URL 
-    : import.meta.env.VITE_GATE_URL;
+  const appUrl = getEffectiveUrl(type);
 
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -37,11 +41,8 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!appUrl) {
-      setIsLoading(false);
-      setHasError(true);
-      return;
-    }
+    setIsLoading(true);
+    setHasError(false);
 
     timeoutRef.current = setTimeout(() => {
       if (isLoading) {
@@ -55,7 +56,7 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [appUrl, isLoading]);
+  }, [appUrl]);
 
   const handleIframeLoad = () => {
     if (timeoutRef.current) {
@@ -74,15 +75,11 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
   };
 
   const openInSameTab = () => {
-    if (appUrl) {
-      window.location.href = appUrl;
-    }
+    window.location.href = appUrl;
   };
 
   const openInNewTab = () => {
-    if (appUrl) {
-      window.open(appUrl, "_blank", "noopener,noreferrer");
-    }
+    window.open(appUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -105,7 +102,16 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
               Artemis Hub Demo — {config.title}
             </h1>
           </div>
-          {appUrl && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-slate-400"
+              onClick={openInSameTab}
+              data-testid="button-open-same-tab"
+            >
+              Open in Same Tab
+            </Button>
             <Button 
               variant="ghost" 
               size="sm"
@@ -116,12 +122,12 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
               <ExternalLink className="w-4 h-4 mr-2" />
               Open in New Tab
             </Button>
-          )}
+          </div>
         </div>
       </header>
 
       <main className="flex-1 relative overflow-hidden">
-        {isLoading && appUrl && (
+        {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-900 z-10">
             <div className="text-center space-y-4">
               <Loader2 className="w-12 h-12 text-slate-400 animate-spin mx-auto" />
@@ -130,85 +136,52 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
           </div>
         )}
 
-        {hasError || !appUrl ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-900 z-10 p-8">
-            <Card className="max-w-md w-full bg-slate-800/50 border-slate-700">
+        {hasError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20 p-8">
+            <Card className="max-w-md w-full bg-slate-800/90 border-slate-700">
               <CardHeader className="text-center">
                 <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
                   <AlertTriangle className="w-8 h-8 text-yellow-500" />
                 </div>
-                <CardTitle className="text-xl text-white">
-                  {!appUrl ? "App URL Not Configured" : "Unable to Load App"}
+                <CardTitle className="text-xl text-white" data-testid="text-embed-error">
+                  Embedding Blocked
                 </CardTitle>
                 <CardDescription className="text-slate-400">
-                  {!appUrl 
-                    ? `The ${config.title} URL environment variable is not set. Please configure VITE_${type.toUpperCase()}_URL.`
-                    : `The ${config.title} application could not be loaded in an embedded view. This may be due to security restrictions.`
-                  }
+                  The {config.title} application could not be embedded. Use the buttons above to open it directly.
                 </CardDescription>
               </CardHeader>
-              {appUrl && (
-                <CardContent className="space-y-3">
-                  <Button 
-                    className="w-full"
-                    onClick={openInSameTab}
-                    data-testid="button-open-same-tab"
-                  >
-                    Open in Same Tab
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
-                    onClick={openInNewTab}
-                    data-testid="button-fallback-new-tab"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Open in New Tab
-                  </Button>
-                  <div className="pt-2">
-                    <Link href="/">
-                      <Button 
-                        variant="ghost" 
-                        className="w-full text-slate-400 hover:text-white"
-                        data-testid="button-fallback-back"
-                      >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back to Hub
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              )}
-              {!appUrl && (
-                <CardContent>
-                  <Link href="/">
-                    <Button 
-                      variant="outline"
-                      className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
-                      data-testid="button-config-back"
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Back to Hub
-                    </Button>
-                  </Link>
-                </CardContent>
-              )}
+              <CardContent className="space-y-3">
+                <Button 
+                  className="w-full"
+                  onClick={openInSameTab}
+                  data-testid="button-fallback-same-tab"
+                >
+                  Open in Same Tab
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="w-full border-slate-600 text-slate-300"
+                  onClick={openInNewTab}
+                  data-testid="button-fallback-new-tab"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open in New Tab
+                </Button>
+              </CardContent>
             </Card>
           </div>
-        ) : null}
-
-        {appUrl && (
-          <iframe
-            ref={iframeRef}
-            src={appUrl}
-            className={`w-full h-full border-0 ${hasError ? 'invisible' : ''}`}
-            sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"
-            onLoad={handleIframeLoad}
-            onError={handleIframeError}
-            title={`${config.title} Application`}
-            data-testid={`iframe-${type}`}
-          />
         )}
+
+        <iframe
+          ref={iframeRef}
+          src={appUrl}
+          className="w-full h-full border-0"
+          sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+          title={`${config.title} Application`}
+          data-testid={`iframe-${type}`}
+        />
       </main>
     </div>
   );
