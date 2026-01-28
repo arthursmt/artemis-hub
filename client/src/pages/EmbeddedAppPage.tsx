@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, ExternalLink, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 
 interface EmbeddedAppPageProps {
   type: "hunt" | "gate";
@@ -97,13 +97,6 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
     setHasError(true);
   };
 
-  const openInSameTab = () => {
-    window.location.href = baseAppUrl;
-  };
-
-  const openInNewTab = () => {
-    window.open(baseAppUrl, "_blank", "noopener,noreferrer");
-  };
 
   return (
     <div className="h-screen flex flex-col bg-slate-900">
@@ -125,44 +118,30 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
               Artemis Hub Demo — {config.title}
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-slate-400"
-              onClick={openInSameTab}
-              data-testid="button-open-same-tab"
-            >
-              Open in Same Tab
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-slate-400"
-              onClick={openInNewTab}
-              data-testid="button-open-new-tab"
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Open in New Tab
-            </Button>
-          </div>
         </div>
       </header>
 
       {showDebug && (
-        <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center gap-4">
-          <div className="flex-1 overflow-x-auto">
+        <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex flex-col gap-1">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 overflow-x-auto">
+              <code className="text-xs font-mono text-cyan-400 whitespace-nowrap" data-testid="text-hub-origin">
+                hubOrigin: {apiBase}
+              </code>
+            </div>
+            <button 
+              onClick={() => setShowDebug(false)} 
+              className="text-slate-500 hover:text-slate-300 text-xs"
+              data-testid="button-hide-debug"
+            >
+              Hide
+            </button>
+          </div>
+          <div className="overflow-x-auto">
             <code className="text-xs font-mono text-green-400 whitespace-nowrap" data-testid="text-iframe-src">
               iframeSrc: {iframeSrc}
             </code>
           </div>
-          <button 
-            onClick={() => setShowDebug(false)} 
-            className="text-slate-500 hover:text-slate-300 text-xs"
-            data-testid="button-hide-debug"
-          >
-            Hide
-          </button>
         </div>
       )}
 
@@ -187,26 +166,16 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
                   Embedding Blocked
                 </CardTitle>
                 <CardDescription className="text-slate-400">
-                  The {config.title} application could not be embedded. Use the buttons above to open it directly.
+                  The {config.title} application could not be embedded due to security restrictions.
+                  Please contact the administrator to configure the external app to allow embedding.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button 
-                  className="w-full"
-                  onClick={openInSameTab}
-                  data-testid="button-fallback-same-tab"
-                >
-                  Open in Same Tab
-                </Button>
-                <Button 
-                  variant="outline"
-                  className="w-full border-slate-600 text-slate-300"
-                  onClick={openInNewTab}
-                  data-testid="button-fallback-new-tab"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Open in New Tab
-                </Button>
+              <CardContent>
+                <Link href="/" data-testid="link-error-back">
+                  <Button className="w-full" data-testid="button-error-back">
+                    Back to Hub
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
