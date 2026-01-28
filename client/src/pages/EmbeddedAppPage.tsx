@@ -44,6 +44,7 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
   const apiBase = window.location.origin;
   const iframeSrc = buildIframeSrc(baseAppUrl, apiBase);
 
+  console.log("[HUB->HUNT] hubOrigin=", window.location.origin);
   console.log("[HUB->HUNT] iframeSrc=", iframeSrc);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -78,13 +79,15 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
     
     // Send postMessage to iframe with apiBase config
     if (iframeRef.current?.contentWindow) {
-      console.log("[HUB->HUNT] postMessage apiBase=", apiBase);
+      console.log("[HUB->HUNT] postMessage sent apiBase=", apiBase);
       iframeRef.current.contentWindow.postMessage(
         { type: "ARTEMIS_CONFIG", apiBase },
         "*"
       );
     }
   };
+
+  const [showDebug, setShowDebug] = useState(true);
 
   const handleIframeError = () => {
     if (timeoutRef.current) {
@@ -145,6 +148,23 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
           </div>
         </div>
       </header>
+
+      {showDebug && (
+        <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center gap-4">
+          <div className="flex-1 overflow-x-auto">
+            <code className="text-xs font-mono text-green-400 whitespace-nowrap" data-testid="text-iframe-src">
+              iframeSrc: {iframeSrc}
+            </code>
+          </div>
+          <button 
+            onClick={() => setShowDebug(false)} 
+            className="text-slate-500 hover:text-slate-300 text-xs"
+            data-testid="button-hide-debug"
+          >
+            Hide
+          </button>
+        </div>
+      )}
 
       <main className="flex-1 relative overflow-hidden">
         {isLoading && (
