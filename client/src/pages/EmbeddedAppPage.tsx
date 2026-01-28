@@ -31,9 +31,20 @@ function getEffectiveUrl(type: "hunt" | "gate"): string {
   return envUrl || APP_CONFIG[type].defaultUrl;
 }
 
+function buildIframeSrc(baseUrl: string, apiBase: string): string {
+  const url = new URL(baseUrl);
+  url.searchParams.set("embed", "1");
+  url.searchParams.set("apiBase", apiBase);
+  return url.toString();
+}
+
 export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
   const config = APP_CONFIG[type];
-  const appUrl = getEffectiveUrl(type);
+  const baseAppUrl = getEffectiveUrl(type);
+  const apiBase = window.location.origin;
+  const iframeSrc = buildIframeSrc(baseAppUrl, apiBase);
+
+  console.log("[HUB->HUNT] iframeSrc=", iframeSrc);
 
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -56,7 +67,7 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [appUrl]);
+  }, [iframeSrc]);
 
   const handleIframeLoad = () => {
     if (timeoutRef.current) {
@@ -64,6 +75,15 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
     }
     setIsLoading(false);
     setHasError(false);
+    
+    // Send postMessage to iframe with apiBase config
+    if (iframeRef.current?.contentWindow) {
+      console.log("[HUB->HUNT] postMessage apiBase=", apiBase);
+      iframeRef.current.contentWindow.postMessage(
+        { type: "ARTEMIS_CONFIG", apiBase },
+        "*"
+      );
+    }
   };
 
   const handleIframeError = () => {
@@ -75,11 +95,11 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
   };
 
   const openInSameTab = () => {
-    window.location.href = appUrl;
+    window.location.href = baseAppUrl;
   };
 
   const openInNewTab = () => {
-    window.open(appUrl, "_blank", "noopener,noreferrer");
+    window.open(baseAppUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -174,7 +194,7 @@ export default function EmbeddedAppPage({ type }: EmbeddedAppPageProps) {
 
         <iframe
           ref={iframeRef}
-          src={appUrl}
+          src={iframeSrc}
           className="w-full h-full border-0"
           sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"
           onLoad={handleIframeLoad}
