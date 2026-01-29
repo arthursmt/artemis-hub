@@ -74,6 +74,23 @@ The application includes a launcher interface for accessing external Artemis app
 - Dev URL warning (.replit.dev) shown on home page and config page
 - "Back to Hub" navigation always available
 
+### Embedded Mode & Proposal Submission
+When Hunt runs embedded inside Hub (via iframe), it receives configuration through URL parameters:
+- `embed=1` - Indicates embedded mode
+- `apiBase=<hub-origin>` - Hub's origin URL for API calls
+
+**Key files:**
+- `client/src/lib/embeddedMode.ts` - Detects embedded mode, returns apiBase
+- `client/src/lib/submitProposal.ts` - Submits proposal data to Hub's `/api/proposals/submit`
+- `client/src/pages/ProductConfigScreen.tsx` - Contains "Confirm Submit" button
+
+**Submission flow:**
+1. User clicks "Confirm Submit" on ProductConfigScreen
+2. `submitProposalToHub()` builds payload with `{ proposalId, payload: { groupId, members, ... } }`
+3. In embedded mode, POST goes to `${apiBase}/api/proposals/submit` (Hub's endpoint)
+4. In standalone mode, POST goes to own `/api/proposals/submit`
+5. Console logs: `[SUBMIT] url=, bytes=, keys=, payload type=`
+
 ## External Dependencies
 
 ### Database

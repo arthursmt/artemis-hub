@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, X, Star, Save, Info } from "lucide-react";
+import { ArrowLeft, Plus, X, Star, Save, Info, Send, Loader2 } from "lucide-react";
 import { Link, useLocation, useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,8 @@ import { useProposalStore, Group, Member, LoanDetails } from "@/lib/proposalStor
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { submitProposalToHub } from "@/lib/submitProposal";
+import { isEmbeddedMode } from "@/lib/embeddedMode";
 import {
   Select,
   SelectContent,
@@ -421,6 +423,74 @@ export default function ProductConfigScreen() {
     if (!confirmed) return;
     persistLoanDetails();
     setLocation("/");
+  };
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const handleConfirmSubmit = async () => {
+    if (!validate()) {
+      toast({
+        title: "Validation Error",
+        description: "Please complete all required fields before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!proposalId) {
+      toast({
+        title: "Error",
+        description: "No proposal ID found.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    persistLoanDetails();
+    
+    const proposal = getProposalById(proposalId);
+    if (!proposal) {
+      toast({
+        title: "Error",
+        description: "Could not find proposal data.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const result = await submitProposalToHub(proposal);
+      
+      if (result.success) {
+        toast({
+          title: "Proposal Submitted",
+          description: `Proposal submitted successfully. Stage: ${result.stage || "pending"}`,
+        });
+        
+        updateProposal(proposalId, prev => ({
+          ...prev,
+          status: "under_evaluation",
+        }));
+        
+        setLocation("/dashboard");
+      } else {
+        toast({
+          title: "Submission Failed",
+          description: result.error || "Unknown error occurred.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Submission Error",
+        description: err instanceof Error ? err.message : "Network error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!group) {
@@ -921,16 +991,35 @@ export default function ProductConfigScreen() {
           </Card>
         )}
 
-        <div className="mt-8 flex justify-between items-center">
+        <div className="mt-8 flex justify-between items-center gap-4">
           <Button variant="outline" className="h-12 px-8 font-semibold" onClick={handleBackToHome}>
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
           </Button>
-          <Button 
-            onClick={handleSaveExit}
-            className="h-12 px-12 bg-primary hover:bg-primary/90 text-white font-bold shadow-xl shadow-primary/20"
-          >
-            Next Step
-          </Button>
+          <div className="flex gap-4">
+            <Button 
+              onClick={handleSaveExit}
+              variant="outline"
+              className="h-12 px-8 font-semibold"
+            >
+              <Save className="w-4 h-4 mr-2" /> Save Draft
+            </Button>
+            <Button 
+              onClick={handleConfirmSubmit}
+              disabled={isSubmitting}
+              className="h-12 px-12 bg-green-600 hover:bg-green-700 text-white font-bold shadow-xl shadow-green-600/20"
+              data-testid="button-confirm-submit"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" /> Confirm Submit
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </main>
     </div>
