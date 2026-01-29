@@ -1,0 +1,90 @@
+You are working on the Artemis Hub backend (Express). We have proof that POST /api/proposals/submit reaches Hub and is forwarded to Arise, but Arise returns 400 because the forwarded payload is missing required fields: groupId and members.
+
+We must fix TWO things in Hub:
+
+A) CORS must be applied to ALL responses (including 4xx/5xx), not only OPTIONS preflight.
+B) Normalize incoming Hunt payloads into Arise-required schema before forwarding.
+
+Please implement the following in server/routes.ts (or wherever the Express routes live):
+
+1) Robust CORS middleware (applies to every request)
+- Allowed origin: https://artemis-hunting--arthursmt89.replit.app
+- If req.headers.origin matches allowed, set:
+  Access-Control-Allow-Origin: <origin>
+  Vary: Origin
+  Access-Control-Allow-Credentials: true (ok even if we don't use cookies)
+  Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Correlation-Id
+  Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+  Access-Control-Expose-Headers: X-Correlation-Id
+- For OPTIONS requests, return 204 immediately (keep existing preflight logging if present).
+IMPORTANT: Ensure these headers are also present when returning errors (400/500). That means middleware must run before routes and before error handlers, and error handler must also preserve headers.
+
+2) Normalize submit body before forwarding to Arise
+Current target: https://artemis-arise--arthursmt89.replit.app/api/proposals/submit
+
+Arise requires at minimum:
+- groupId (string)
+- members (array)
+
+Incoming bodies may be:
+- (a) Already normalized: { groupId, members, ... }
+- (b) Wrapped: { proposalId, payload: { ...lots of fields... } }
+- (c) Minimal or incorrect: { proposalId, payload: {...} } but missing groupId/members
+
+Implement a function normalizeForArise(body):
+- Let raw = body
+- If body.payload exists and is an object, treat raw = body.payload (unwrap)
+- Determine proposalId:
+  - proposalId = body.proposalId || raw.proposalId || raw.id || String(Date.now())
+- Determine groupId:
+  - groupId = raw.groupId || body.groupId || `GRP-${proposalId}`
+- Determine leaderName / clientName:
+  - leaderName = raw.leaderName || raw.clientName || raw.fullName || "Unknown Leader"
+- Determine members:
+  - If raw.members is a non-empty array, use it.
+  - Else create members = [{
+      memberId: raw.memberId || "M1",
+      fullName: leaderName,
+      role: "LEADER"
+    }]
+- Preserve any extra fields that Arise might accept:
+  - totalAmount/amount if present: raw.totalAmount || raw.amount
+  - submittedAt: raw.submittedAt || new Date().toISOString()
+  - evidence/photos can be omitted for now; we only need E2E pipeline proof.
+
+Return normalized object:
+{
+  proposalId,
+  groupId,
+  members,
+  leaderName,
+  clientName: raw.clientName || leaderName,
+  totalAmount: raw.totalAmount || raw.amount || 0,
+  submittedAt
+}
+
+3) Update POST /api/proposals/submit handler
+- Parse JSON body
+- Call normalizeForArise(req.body)
+- Log:
+  - correlationId (uuid)
+  - origin
+  - content-length
+  - original body keys
+  - normalized keys + groupId + members.length
+  - targetUrl
+- Forward normalized payload to Arise using fetch
+- Pass through upstream status and body to client
+- Ensure response includes correlationId and ALWAYS has CORS headers (middleware should handle)
+
+4) Verify debug log endpoint works
+- GET /api/debug/submit-last should show the POST attempt with upstreamStatus 201 when Arise accepts.
+- If Arise rejects, client should see status 400 with JSON body (NOT "CORS error").
+
+After implementing, republish Hub.
+
+How we will validate:
+- In browser on https://artemis-hub.replit.app/hunt, submit a proposal.
+- Network: POST /api/proposals/submit should show real status (201 or 400) and Response should be visible (no CORS error).
+- Hub: /api/debug/submit-last should increment.
+- Arise: GET https://artemis-arise--arthursmt89.replit.app/api/gate/proposals?stage=DOC_REVIEW should include the newly submitted proposal (count increases).

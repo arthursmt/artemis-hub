@@ -1,5 +1,5 @@
 
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
@@ -13,7 +13,10 @@ interface SubmitLogEntry {
   origin: string;
   referer: string;
   contentLength: string;
-  bodyKeys: string[];
+  originalBodyKeys: string[];
+  normalizedBodyKeys: string[];
+  normalizedGroupId: string;
+  normalizedMembersCount: number;
   targetUrl: string;
   received: boolean;
   forwarded: boolean;
@@ -33,10 +36,139 @@ function addSubmitLog(entry: SubmitLogEntry) {
   }
 }
 
+// CORS allowlist
+const CORS_ALLOWED_ORIGINS = [
+  "https://artemis-hub.replit.app",
+  "https://artemis-hub--arthursmt89.replit.app",
+  "https://artemis-hunting.replit.app",
+  "https://artemis-hunting--arthursmt89.replit.app",
+];
+
+function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return false;
+  if (CORS_ALLOWED_ORIGINS.includes(origin)) return true;
+  // Allow any *.replit.dev for dev previews
+  if (origin.endsWith(".replit.dev")) return true;
+  // Allow localhost for development
+  if (origin.startsWith("http://localhost")) return true;
+  return false;
+}
+
+function setCorsHeaders(res: Response, origin: string | undefined) {
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Correlation-Id");
+    res.setHeader("Access-Control-Expose-Headers", "X-Correlation-Id");
+    res.setHeader("Access-Control-Max-Age", "86400");
+  }
+}
+
+// Normalize incoming Hunt payloads to Arise-required schema
+interface NormalizedPayload {
+  proposalId: string;
+  groupId: string;
+  members: Array<{ memberId: string; fullName: string; role: string }>;
+  leaderName: string;
+  clientName: string;
+  totalAmount: number;
+  submittedAt: string;
+  [key: string]: any;
+}
+
+function normalizeForArise(body: any): NormalizedPayload {
+  // Unwrap if wrapped in payload
+  let raw = body;
+  if (body && typeof body.payload === 'object' && body.payload !== null) {
+    raw = body.payload;
+  }
+  
+  // Determine proposalId
+  const proposalId = body.proposalId || raw.proposalId || raw.id || String(Date.now());
+  
+  // Determine groupId
+  const groupId = raw.groupId || body.groupId || `GRP-${proposalId}`;
+  
+  // Determine leaderName / clientName
+  const leaderName = raw.leaderName || raw.clientName || raw.fullName || "Unknown Leader";
+  
+  // Determine loan amount
+  const loanAmount = raw.loanAmount || raw.requestedAmount || raw.totalAmount || raw.amount || 10000;
+  
+  // Determine members - Arise requires: name (or firstName+lastName), loanAmount (or requestedAmount)
+  let members: Array<any>;
+  if (Array.isArray(raw.members) && raw.members.length > 0) {
+    // Ensure each member has required fields
+    members = raw.members.map((m: any, idx: number) => ({
+      memberId: m.memberId || m.id || `M${idx + 1}`,
+      name: m.name || m.fullName || `${m.firstName || ''} ${m.lastName || ''}`.trim() || leaderName,
+      firstName: m.firstName || (m.name || leaderName).split(' ')[0],
+      lastName: m.lastName || (m.name || leaderName).split(' ').slice(1).join(' ') || '',
+      loanAmount: m.loanAmount || m.requestedAmount || loanAmount,
+      role: m.role || (idx === 0 ? "LEADER" : "MEMBER"),
+    }));
+  } else {
+    // Create default member with required fields
+    const nameParts = leaderName.split(' ');
+    members = [{
+      memberId: raw.memberId || "M1",
+      name: leaderName,
+      firstName: nameParts[0] || leaderName,
+      lastName: nameParts.slice(1).join(' ') || '',
+      loanAmount: loanAmount,
+      role: "LEADER"
+    }];
+  }
+  
+  // Build normalized payload
+  const normalized: NormalizedPayload = {
+    proposalId,
+    groupId,
+    members,
+    leaderName,
+    clientName: raw.clientName || leaderName,
+    totalAmount: loanAmount,
+    submittedAt: raw.submittedAt || new Date().toISOString(),
+  };
+  
+  // Preserve extra fields that might be useful
+  if (raw.loanAmount || loanAmount) normalized.loanAmount = loanAmount;
+  if (raw.loanPurpose) normalized.loanPurpose = raw.loanPurpose;
+  if (raw.loanTerm) normalized.loanTerm = raw.loanTerm;
+  if (raw.status) normalized.status = raw.status;
+  if (raw.agentId) normalized.agentId = raw.agentId;
+  
+  return normalized;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // ========================================
+  // CORS MIDDLEWARE - applies to ALL routes
+  // ========================================
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers.origin;
+    const allowed = isOriginAllowed(origin);
+    
+    // Set CORS headers on every response
+    setCorsHeaders(res, origin);
+    
+    // Log preflight requests
+    if (req.method === 'OPTIONS') {
+      console.log(`[CORS] OPTIONS preflight`);
+      console.log(`[CORS]   path: ${req.path}`);
+      console.log(`[CORS]   origin: ${origin}`);
+      console.log(`[CORS]   referer: ${req.headers.referer || 'none'}`);
+      console.log(`[CORS]   allowed: ${allowed}`);
+      return res.status(204).end();
+    }
+    
+    next();
+  });
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({
@@ -84,51 +216,30 @@ export async function registerRoutes(
     }
   });
 
-  // Helper to set CORS headers on response
-  function setCorsHeaders(res: any, origin: string | undefined) {
-    if (origin) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Vary", "Origin");
-      res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Correlation-Id");
-      res.setHeader("Access-Control-Expose-Headers", "X-Correlation-Id");
-      res.setHeader("Access-Control-Max-Age", "86400");
-    }
-  }
-
-  // Explicit OPTIONS handler for /api/proposals/submit
-  app.options("/api/proposals/submit", (req, res) => {
-    const origin = req.headers.origin;
-    const referer = req.headers.referer || 'none';
-    
-    console.log(`[SUBMIT OPTIONS] === OPTIONS /api/proposals/submit ===`);
-    console.log(`[SUBMIT OPTIONS] origin: ${origin}`);
-    console.log(`[SUBMIT OPTIONS] referer: ${referer}`);
-    
-    setCorsHeaders(res, origin);
-    res.status(204).end();
-  });
-
-  // Proposal submit endpoint - forwards to Arise
+  // Proposal submit endpoint - forwards to Arise with normalized payload
   app.post("/api/proposals/submit", async (req, res) => {
     const correlationId = randomUUID();
     const origin = req.headers.origin || 'unknown';
     const referer = req.headers.referer || 'none';
     const contentLength = req.headers['content-length'] || 'unknown';
-    const bodyKeys = Object.keys(req.body || {});
+    const originalBodyKeys = Object.keys(req.body || {});
     const ARISE_BASE_URL = process.env.ARISE_BASE_URL;
     const targetUrl = ARISE_BASE_URL ? `${ARISE_BASE_URL}/api/proposals/submit` : '';
+    
+    // Normalize payload for Arise
+    const normalized = normalizeForArise(req.body);
+    const normalizedBodyKeys = Object.keys(normalized);
     
     console.log(`[HUNT SUBMIT] === POST /api/proposals/submit ===`);
     console.log(`[HUNT SUBMIT] correlationId: ${correlationId}`);
     console.log(`[HUNT SUBMIT] origin: ${origin}`);
     console.log(`[HUNT SUBMIT] referer: ${referer}`);
     console.log(`[HUNT SUBMIT] content-length: ${contentLength} bytes`);
-    console.log(`[HUNT SUBMIT] body keys: ${bodyKeys.join(', ')}`);
+    console.log(`[HUNT SUBMIT] original body keys: ${originalBodyKeys.join(', ')}`);
+    console.log(`[HUNT SUBMIT] normalized keys: ${normalizedBodyKeys.join(', ')}`);
+    console.log(`[HUNT SUBMIT] normalized groupId: ${normalized.groupId}`);
+    console.log(`[HUNT SUBMIT] normalized members.length: ${normalized.members.length}`);
     console.log(`[HUNT SUBMIT] targetUrl: ${targetUrl}`);
-    
-    // Set CORS headers immediately (before any early returns)
-    setCorsHeaders(res, req.headers.origin);
     
     // Create log entry immediately (received = true)
     const logEntry: SubmitLogEntry = {
@@ -138,7 +249,10 @@ export async function registerRoutes(
       origin: String(origin),
       referer: String(referer),
       contentLength: String(contentLength),
-      bodyKeys,
+      originalBodyKeys,
+      normalizedBodyKeys,
+      normalizedGroupId: normalized.groupId,
+      normalizedMembersCount: normalized.members.length,
       targetUrl,
       received: true,
       forwarded: false,
@@ -160,13 +274,14 @@ export async function registerRoutes(
     }
     
     try {
+      // Forward NORMALIZED payload to Arise
       const upstreamResponse = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Correlation-Id': correlationId,
         },
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(normalized),
       });
       
       const upstreamStatus = upstreamResponse.status;
