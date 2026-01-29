@@ -9,10 +9,14 @@ import { randomUUID } from "crypto";
 interface SubmitLogEntry {
   correlationId: string;
   timestamp: string;
+  method: string;
   origin: string;
+  referer: string;
   contentLength: string;
   bodyKeys: string[];
   targetUrl: string;
+  received: boolean;
+  forwarded: boolean;
   upstreamStatus?: number;
   upstreamBodyKeys?: string[];
   error?: string;
@@ -44,6 +48,20 @@ export async function registerRoutes(
     });
   });
 
+  // Probe endpoint to confirm deployed server is serving our code
+  app.get("/api/debug/probe", (req, res) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    }
+    res.json({
+      ok: true,
+      service: "hub",
+      ts: new Date().toISOString(),
+    });
+  });
+
   // Proposals
   app.get(api.proposals.list.path, async (req, res) => {
     const proposals = await storage.getProposals();
@@ -66,16 +84,40 @@ export async function registerRoutes(
     }
   });
 
+  // Helper to set CORS headers on response
+  function setCorsHeaders(res: any, origin: string | undefined) {
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Correlation-Id");
+      res.setHeader("Access-Control-Expose-Headers", "X-Correlation-Id");
+      res.setHeader("Access-Control-Max-Age", "86400");
+    }
+  }
+
+  // Explicit OPTIONS handler for /api/proposals/submit
+  app.options("/api/proposals/submit", (req, res) => {
+    const origin = req.headers.origin;
+    const referer = req.headers.referer || 'none';
+    
+    console.log(`[SUBMIT OPTIONS] === OPTIONS /api/proposals/submit ===`);
+    console.log(`[SUBMIT OPTIONS] origin: ${origin}`);
+    console.log(`[SUBMIT OPTIONS] referer: ${referer}`);
+    
+    setCorsHeaders(res, origin);
+    res.status(204).end();
+  });
+
   // Proposal submit endpoint - forwards to Arise
   app.post("/api/proposals/submit", async (req, res) => {
     const correlationId = randomUUID();
     const origin = req.headers.origin || 'unknown';
+    const referer = req.headers.referer || 'none';
     const contentLength = req.headers['content-length'] || 'unknown';
     const bodyKeys = Object.keys(req.body || {});
     const ARISE_BASE_URL = process.env.ARISE_BASE_URL;
     const targetUrl = ARISE_BASE_URL ? `${ARISE_BASE_URL}/api/proposals/submit` : '';
-    
-    const referer = req.headers.referer || 'none';
     
     console.log(`[HUNT SUBMIT] === POST /api/proposals/submit ===`);
     console.log(`[HUNT SUBMIT] correlationId: ${correlationId}`);
@@ -85,21 +127,31 @@ export async function registerRoutes(
     console.log(`[HUNT SUBMIT] body keys: ${bodyKeys.join(', ')}`);
     console.log(`[HUNT SUBMIT] targetUrl: ${targetUrl}`);
     
+    // Set CORS headers immediately (before any early returns)
+    setCorsHeaders(res, req.headers.origin);
+    
+    // Create log entry immediately (received = true)
     const logEntry: SubmitLogEntry = {
       correlationId,
       timestamp: new Date().toISOString(),
+      method: 'POST',
       origin: String(origin),
+      referer: String(referer),
       contentLength: String(contentLength),
       bodyKeys,
       targetUrl,
+      received: true,
+      forwarded: false,
       success: false,
     };
+    
+    // Add to log immediately so we see it even if something fails
+    addSubmitLog(logEntry);
     
     if (!ARISE_BASE_URL) {
       const error = "ARISE_BASE_URL not configured";
       console.error(`[HUNT SUBMIT] ${error}`);
       logEntry.error = error;
-      addSubmitLog(logEntry);
       return res.status(502).json({
         correlationId,
         error,
@@ -131,10 +183,11 @@ export async function registerRoutes(
       console.log(`[HUNT SUBMIT] Upstream status: ${upstreamStatus}`);
       console.log(`[HUNT SUBMIT] Upstream body keys: ${upstreamBodyKeys.join(', ')}`);
       
+      // Update log entry
+      logEntry.forwarded = true;
       logEntry.upstreamStatus = upstreamStatus;
       logEntry.upstreamBodyKeys = upstreamBodyKeys;
       logEntry.success = upstreamStatus >= 200 && upstreamStatus < 300;
-      addSubmitLog(logEntry);
       
       // Pass-through upstream response
       res.status(upstreamStatus).json({
@@ -146,7 +199,6 @@ export async function registerRoutes(
       console.error(`[HUNT SUBMIT] Error forwarding to Arise:`, err.stack || err);
       
       logEntry.error = errorMsg;
-      addSubmitLog(logEntry);
       
       res.status(502).json({
         correlationId,

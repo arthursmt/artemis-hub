@@ -1,0 +1,42 @@
+HUB - STOP GUESSING: add probe + hard logging + CORS on ALL outcomes
+
+1) In server/routes.ts (or wherever Express routes are defined), add a global request logger ONLY for this path:
+- Log every request to /api/proposals/submit (method, origin, referer).
+
+2) Add a PROBE endpoint to confirm the deployed server is serving our code (not a fallback HTML page):
+GET /api/debug/probe
+Return JSON: { ok: true, service: "hub", ts: new Date().toISOString() }
+Also set CORS headers on this response.
+
+3) Ensure CORS headers are set for BOTH OPTIONS and POST for /api/proposals/submit.
+For CORS, do NOT rely on a generic middleware that may skip errors/redirects.
+Implement explicit handlers:
+
+- OPTIONS /api/proposals/submit
+  Return 204 and set:
+    Access-Control-Allow-Origin: <request Origin>
+    Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Correlation-Id
+    Access-Control-Expose-Headers: X-Correlation-Id
+    Access-Control-Max-Age: 86400
+    Vary: Origin
+
+- POST /api/proposals/submit
+  BEFORE forwarding anywhere:
+    - Generate/propagate correlationId
+    - Push a log entry into an in-memory ring buffer (last 50) with:
+      { ts, correlationId, method, origin, referer, contentLength, received: true, forwarded: false }
+    - Set CORS headers on the response (same as above, including Vary: Origin)
+  Then forward to ARISE_BASE_URL + "/api/proposals/submit"
+  Update the log entry with { forwarded: true, upstreamStatus, success }
+  Return upstream status + JSON body.
+  On ANY error, still return JSON with CORS headers and update log with error.
+
+4) Update GET /api/debug/submit-last to return the ring buffer so we can see attempts even when upstream fails.
+
+5) Republish HUB.
+
+Validation checklist:
+A) Open https://artemis-hub.replit.app/api/debug/probe -> MUST return JSON (not HTML).
+B) Submit from the embedded Hunt.
+C) Open https://artemis-hub.replit.app/api/debug/submit-last -> count MUST be > 0 and show origin/referer/correlationId.
