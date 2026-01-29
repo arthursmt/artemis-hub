@@ -1,0 +1,77 @@
+You are working in the Artemis Hub repo.
+
+Goal:
+1) Eliminate the browser "CORS error" on POST /api/proposals/submit by ensuring CORS headers are present on EVERY response path (success and error), not only on OPTIONS.
+2) Make Hub resilient to different Hunt payload shapes by normalizing incoming request bodies into the minimal schema required by Arise: { groupId, members } (and keep leaderName/amount/submittedAt if available).
+3) Improve debug logs to clearly show whether the incoming submit was a real proposal vs a debug/test payload.
+
+Constraints:
+- Do NOT remove Arise from the flow. Hub must forward to ARISE_BASE_URL + "/api/proposals/submit".
+- Keep existing /api/debug/probe and /api/debug/submit-last.
+
+Tasks:
+A) CORS hardening
+- Ensure the CORS middleware runs BEFORE routes and applies to ALL /api/* responses.
+- Allowed origins must include:
+  - https://artemis-hunting--arthursmt89.replit.app
+  - https://artemis-hub.replit.app (optional but safe)
+- Always set:
+  - Access-Control-Allow-Origin (echo matched origin)
+  - Vary: Origin
+  - Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+  - Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Correlation-Id
+  - Access-Control-Expose-Headers: X-Correlation-Id
+- OPTIONS /api/* should respond 204 quickly.
+
+B) Payload normalization
+Implement a function normalizeProposalInput(body) that supports these incoming shapes:
+1) { proposalId, payload } where payload can be:
+   - an object, OR
+   - a JSON string (very long)
+2) { id, groupId, clientName, leaderName, members, ... } (already expanded)
+3) Any "legacy" Hunt shape; best-effort parse.
+
+Normalization rules:
+- If body has "payload" as string, JSON.parse it safely.
+- Determine groupId:
+  - prefer payload.groupId
+  - else payload.id -> "GRP-" + payload.id
+  - else body.proposalId -> "GRP-" + proposalId
+- Determine members:
+  - prefer payload.members if array and length > 0
+  - else if payload.leaderName or payload.clientName exists, synthesize:
+    members = [{ memberId: "M1", fullName: leaderName/clientName, role: "LEADER" }]
+- Output must include at least { groupId, members } because Arise currently errors if missing.
+- Preserve leaderName, clientName, totalAmount, submittedAt if present.
+
+C) Forwarding
+- POST /api/proposals/submit must:
+  1) compute correlationId
+  2) normalize incoming body into "normalized"
+  3) forward "normalized" JSON to `${ARISE_BASE_URL}/api/proposals/submit`
+  4) return upstream status and body to client
+  5) on upstream error, still include CORS headers and return JSON with correlationId and upstream status/body keys.
+
+D) Debugging improvements
+- In submit logs, print:
+  - content-length
+  - body keys
+  - whether payload was parsed from string
+  - normalized.groupId
+  - normalized.members.length
+  - upstream status and upstream body keys
+- Store last 50 submit attempts in memory (already exists) and include:
+  - receivedBodyKeys
+  - normalizedGroupId
+  - normalizedMembersCount
+  - upstreamStatus
+
+After changes:
+- Republish production.
+- Provide a short "How to validate" checklist:
+  1) From https://artemis-hub.replit.app/hunt submit a proposal
+  2) Network should show POST /api/proposals/submit not blocked by CORS
+  3) /api/debug/submit-last should show count increasing
+  4) Arise DOC_REVIEW count should increase when upstream returns 201
+
+Implement now.

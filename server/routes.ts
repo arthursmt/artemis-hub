@@ -13,8 +13,9 @@ interface SubmitLogEntry {
   origin: string;
   referer: string;
   contentLength: string;
-  originalBodyKeys: string[];
-  normalizedBodyKeys: string[];
+  receivedBodyKeys: string[];
+  payloadWasString: boolean;
+  isTestPayload: boolean;
   normalizedGroupId: string;
   normalizedMembersCount: number;
   targetUrl: string;
@@ -70,7 +71,7 @@ function setCorsHeaders(res: Response, origin: string | undefined) {
 interface NormalizedPayload {
   proposalId: string;
   groupId: string;
-  members: Array<{ memberId: string; fullName: string; role: string }>;
+  members: Array<{ memberId: string; name: string; firstName: string; lastName: string; loanAmount: number; role: string }>;
   leaderName: string;
   clientName: string;
   totalAmount: number;
@@ -78,17 +79,44 @@ interface NormalizedPayload {
   [key: string]: any;
 }
 
-function normalizeForArise(body: any): NormalizedPayload {
-  // Unwrap if wrapped in payload
+interface NormalizationResult {
+  normalized: NormalizedPayload;
+  payloadWasString: boolean;
+  isTestPayload: boolean;
+}
+
+function normalizeProposalInput(body: any): NormalizationResult {
+  let payloadWasString = false;
   let raw = body;
-  if (body && typeof body.payload === 'object' && body.payload !== null) {
-    raw = body.payload;
+  
+  // Handle payload field - could be object or JSON string
+  if (body && body.payload !== undefined) {
+    if (typeof body.payload === 'string') {
+      payloadWasString = true;
+      try {
+        raw = JSON.parse(body.payload);
+      } catch (e) {
+        console.log(`[NORMALIZE] Failed to parse payload string, using as-is`);
+        raw = body;
+      }
+    } else if (typeof body.payload === 'object' && body.payload !== null) {
+      raw = body.payload;
+    }
   }
+  
+  // Detect test/debug payloads
+  const bodyStr = JSON.stringify(body).toLowerCase();
+  const isTestPayload = 
+    bodyStr.includes('"test"') || 
+    bodyStr.includes('"debug"') ||
+    bodyStr.includes('test-') ||
+    bodyStr.includes('debug-') ||
+    (body.proposalId && body.proposalId.toString().startsWith('test'));
   
   // Determine proposalId
   const proposalId = body.proposalId || raw.proposalId || raw.id || String(Date.now());
   
-  // Determine groupId
+  // Determine groupId (prefer payload.groupId, else synthesize)
   const groupId = raw.groupId || body.groupId || `GRP-${proposalId}`;
   
   // Determine leaderName / clientName
@@ -101,16 +129,20 @@ function normalizeForArise(body: any): NormalizedPayload {
   let members: Array<any>;
   if (Array.isArray(raw.members) && raw.members.length > 0) {
     // Ensure each member has required fields
-    members = raw.members.map((m: any, idx: number) => ({
-      memberId: m.memberId || m.id || `M${idx + 1}`,
-      name: m.name || m.fullName || `${m.firstName || ''} ${m.lastName || ''}`.trim() || leaderName,
-      firstName: m.firstName || (m.name || leaderName).split(' ')[0],
-      lastName: m.lastName || (m.name || leaderName).split(' ').slice(1).join(' ') || '',
-      loanAmount: m.loanAmount || m.requestedAmount || loanAmount,
-      role: m.role || (idx === 0 ? "LEADER" : "MEMBER"),
-    }));
+    members = raw.members.map((m: any, idx: number) => {
+      const memberName = m.name || m.fullName || `${m.firstName || ''} ${m.lastName || ''}`.trim() || leaderName;
+      const nameParts = memberName.split(' ');
+      return {
+        memberId: m.memberId || m.id || `M${idx + 1}`,
+        name: memberName,
+        firstName: m.firstName || nameParts[0] || memberName,
+        lastName: m.lastName || nameParts.slice(1).join(' ') || '',
+        loanAmount: m.loanAmount || m.requestedAmount || loanAmount,
+        role: m.role || (idx === 0 ? "LEADER" : "MEMBER"),
+      };
+    });
   } else {
-    // Create default member with required fields
+    // Create default member with required fields from leaderName/clientName
     const nameParts = leaderName.split(' ');
     members = [{
       memberId: raw.memberId || "M1",
@@ -122,7 +154,7 @@ function normalizeForArise(body: any): NormalizedPayload {
     }];
   }
   
-  // Build normalized payload
+  // Build normalized payload - must have at least { groupId, members }
   const normalized: NormalizedPayload = {
     proposalId,
     groupId,
@@ -140,7 +172,7 @@ function normalizeForArise(body: any): NormalizedPayload {
   if (raw.status) normalized.status = raw.status;
   if (raw.agentId) normalized.agentId = raw.agentId;
   
-  return normalized;
+  return { normalized, payloadWasString, isTestPayload };
 }
 
 export async function registerRoutes(
@@ -222,21 +254,21 @@ export async function registerRoutes(
     const origin = req.headers.origin || 'unknown';
     const referer = req.headers.referer || 'none';
     const contentLength = req.headers['content-length'] || 'unknown';
-    const originalBodyKeys = Object.keys(req.body || {});
+    const receivedBodyKeys = Object.keys(req.body || {});
     const ARISE_BASE_URL = process.env.ARISE_BASE_URL;
     const targetUrl = ARISE_BASE_URL ? `${ARISE_BASE_URL}/api/proposals/submit` : '';
     
-    // Normalize payload for Arise
-    const normalized = normalizeForArise(req.body);
-    const normalizedBodyKeys = Object.keys(normalized);
+    // Normalize payload for Arise (handles string payloads, various shapes)
+    const { normalized, payloadWasString, isTestPayload } = normalizeProposalInput(req.body);
     
     console.log(`[HUNT SUBMIT] === POST /api/proposals/submit ===`);
     console.log(`[HUNT SUBMIT] correlationId: ${correlationId}`);
     console.log(`[HUNT SUBMIT] origin: ${origin}`);
     console.log(`[HUNT SUBMIT] referer: ${referer}`);
     console.log(`[HUNT SUBMIT] content-length: ${contentLength} bytes`);
-    console.log(`[HUNT SUBMIT] original body keys: ${originalBodyKeys.join(', ')}`);
-    console.log(`[HUNT SUBMIT] normalized keys: ${normalizedBodyKeys.join(', ')}`);
+    console.log(`[HUNT SUBMIT] received body keys: ${receivedBodyKeys.join(', ')}`);
+    console.log(`[HUNT SUBMIT] payloadWasString: ${payloadWasString}`);
+    console.log(`[HUNT SUBMIT] isTestPayload: ${isTestPayload}`);
     console.log(`[HUNT SUBMIT] normalized groupId: ${normalized.groupId}`);
     console.log(`[HUNT SUBMIT] normalized members.length: ${normalized.members.length}`);
     console.log(`[HUNT SUBMIT] targetUrl: ${targetUrl}`);
@@ -249,8 +281,9 @@ export async function registerRoutes(
       origin: String(origin),
       referer: String(referer),
       contentLength: String(contentLength),
-      originalBodyKeys,
-      normalizedBodyKeys,
+      receivedBodyKeys,
+      payloadWasString,
+      isTestPayload,
       normalizedGroupId: normalized.groupId,
       normalizedMembersCount: normalized.members.length,
       targetUrl,
