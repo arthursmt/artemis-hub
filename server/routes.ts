@@ -9,6 +9,7 @@ import { randomUUID } from "crypto";
 interface SubmitLogEntry {
   correlationId: string;
   timestamp: string;
+  origin: string;
   contentLength: string;
   bodyKeys: string[];
   targetUrl: string;
@@ -68,12 +69,14 @@ export async function registerRoutes(
   // Proposal submit endpoint - forwards to Arise
   app.post("/api/proposals/submit", async (req, res) => {
     const correlationId = randomUUID();
+    const origin = req.headers.origin || 'unknown';
     const contentLength = req.headers['content-length'] || 'unknown';
     const bodyKeys = Object.keys(req.body || {});
     const ARISE_BASE_URL = process.env.ARISE_BASE_URL;
     const targetUrl = ARISE_BASE_URL ? `${ARISE_BASE_URL}/api/proposals/submit` : '';
     
     console.log(`[HUNT SUBMIT] correlationId=${correlationId}`);
+    console.log(`[HUNT SUBMIT] Origin: ${origin}`);
     console.log(`[HUNT SUBMIT] Content-Length: ${contentLength} bytes`);
     console.log(`[HUNT SUBMIT] Body keys: ${bodyKeys.join(', ')}`);
     console.log(`[HUNT SUBMIT] Target URL: ${targetUrl}`);
@@ -81,6 +84,7 @@ export async function registerRoutes(
     const logEntry: SubmitLogEntry = {
       correlationId,
       timestamp: new Date().toISOString(),
+      origin: String(origin),
       contentLength: String(contentLength),
       bodyKeys,
       targetUrl,

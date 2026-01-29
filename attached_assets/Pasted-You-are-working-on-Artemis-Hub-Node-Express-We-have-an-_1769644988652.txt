@@ -1,0 +1,40 @@
+You are working on Artemis Hub (Node/Express). We have an embedded Hunt app running inside an iframe on https://artemis-hub.replit.app/hunt. The Hunt iframe origin is different (e.g. https://artemis-hunting--arthursmt89.replit.app and sometimes a *.worf.replit.dev origin in dev), and it must POST to the Hub endpoint /api/proposals/submit. Currently the browser shows CORS error: preflight OPTIONS returns 200, but the POST is blocked and /api/debug/submit-last stays empty (count 0). 
+
+TASK: Implement robust CORS handling for Hub API endpoints so the embedded Hunt can call Hub successfully.
+
+REQUIREMENTS:
+1) Add CORS middleware in server/routes.ts (or wherever routes are registered) that:
+   - Reads the request Origin header.
+   - Allows only a safe allowlist of origins:
+     * https://artemis-hub.replit.app
+     * https://artemis-hunting--arthursmt89.replit.app
+     * any origin ending with .worf.replit.dev (dev preview)
+     * any origin ending with .replit.dev (optional)
+   - If Origin is allowed, set:
+     Access-Control-Allow-Origin: <origin>
+     Vary: Origin
+     Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+     Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Correlation-Id
+     Access-Control-Expose-Headers: X-Correlation-Id
+     Access-Control-Max-Age: 86400
+   - Do NOT use '*' when credentials are involved. If you are not using cookies/credentials, still reflect the origin from allowlist (safer with iframes).
+2) Handle preflight OPTIONS globally:
+   - For any /api/* route, if method is OPTIONS, return 204 (or 200) with the headers above and end().
+3) Ensure the actual POST /api/proposals/submit response ALSO includes the CORS headers (not only OPTIONS).
+4) Keep the existing forward-to-Arise logic:
+   - ARISE_BASE_URL env var
+   - Forward to ${ARISE_BASE_URL}/api/proposals/submit
+   - Pass through upstream status and body
+   - On errors, return 502 with JSON { error, correlationId }
+5) Logging:
+   - For every submit attempt (including failures), append to an in-memory ring buffer (last 50) used by GET /api/debug/submit-last
+   - Include: timestamp, correlationId, origin, targetUrl, upstreamStatus (if any), success boolean, error message (if any)
+6) Increase body size limits safely for JSON payloads (photos can be big):
+   - Use express.json({ limit: '25mb' }) and express.urlencoded({ extended: true, limit: '25mb' }) on the Hub server.
+
+DELIVERABLE:
+- Code changes applied
+- Confirm how to test:
+  a) From https://artemis-hub.replit.app/hunt submit a proposal
+  b) Verify Network shows POST 201 (or upstream status), not CORS error
+  c) Verify https://artemis-hub.replit.app/api/debug/submit-last shows count>=1 with upstreamStatus

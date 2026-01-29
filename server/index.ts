@@ -12,16 +12,46 @@ declare module "http" {
   }
 }
 
-/**
- * ✅ Replit Preview roda em iframe.
- * Em DEV, liberamos frame-ancestors para evitar o “símbolo proibido” no Preview.
- * Em PROD, não abrimos (segurança).
- */
+// CORS allowlist for embedded Hunt/Gate apps
+const ALLOWED_ORIGINS = [
+  "https://artemis-hub.replit.app",
+  "https://artemis-hunting--arthursmt89.replit.app",
+];
+
+function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  if (origin.endsWith(".replit.dev")) return true;
+  if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) return true;
+  return false;
+}
+
+// CORS middleware - must be before other middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Correlation-Id");
+    res.setHeader("Access-Control-Expose-Headers", "X-Correlation-Id");
+    res.setHeader("Access-Control-Max-Age", "86400");
+  }
+  
+  // Handle preflight OPTIONS requests for /api/*
+  if (req.method === "OPTIONS" && req.path.startsWith("/api")) {
+    console.log(`[CORS] OPTIONS preflight for ${req.path} from origin: ${origin}`);
+    return res.status(204).end();
+  }
+  
+  next();
+});
+
+// Replit Preview runs in iframe - allow frame-ancestors in dev
 app.use((_req, res, next) => {
   if (process.env.NODE_ENV !== "production") {
-    // Super permissivo em dev para não brigar com os domínios de embed do Replit
     res.setHeader("Content-Security-Policy", "frame-ancestors *;");
-    // Garante que nada esteja bloqueando por X-Frame-Options
     res.removeHeader("X-Frame-Options");
   }
   next();
@@ -56,9 +86,9 @@ app.use((req, res, next) => {
   let capturedJsonResponse: Record<string, any> | undefined;
 
   const originalResJson = res.json.bind(res);
-  res.json = (bodyJson: any, ...args: any[]) => {
+  res.json = (bodyJson: any) => {
     capturedJsonResponse = bodyJson;
-    return originalResJson(bodyJson, ...args);
+    return originalResJson(bodyJson);
   };
 
   res.on("finish", () => {
@@ -81,7 +111,7 @@ app.get("/healthz", (_req, res) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
-  // Error handler (não derruba o server em dev)
+  // Error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err?.status || err?.statusCode || 500;
     const message = err?.message || "Internal Server Error";
