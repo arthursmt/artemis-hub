@@ -41,7 +41,12 @@ app.use((req, res, next) => {
   
   // Handle preflight OPTIONS requests for /api/*
   if (req.method === "OPTIONS" && req.path.startsWith("/api")) {
-    console.log(`[CORS] OPTIONS preflight for ${req.path} from origin: ${origin}`);
+    const referer = req.headers.referer || 'none';
+    console.log(`[CORS] OPTIONS preflight`);
+    console.log(`[CORS]   path: ${req.path}`);
+    console.log(`[CORS]   origin: ${origin}`);
+    console.log(`[CORS]   referer: ${referer}`);
+    console.log(`[CORS]   allowed: ${origin ? isOriginAllowed(origin) : false}`);
     return res.status(204).end();
   }
   

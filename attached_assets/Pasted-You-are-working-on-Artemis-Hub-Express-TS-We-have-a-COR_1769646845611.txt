@@ -1,0 +1,49 @@
+You are working on Artemis Hub (Express + TS). We have a CORS-blocked E2E flow:
+
+- The embedded Hunt runs from origin: https://artemis-hunting--arthursmt89.replit.app
+- Inside Hub, the Hunt iframe calls: https://artemis-hub.replit.app/api/proposals/submit
+- Browser shows OPTIONS 200 OK but POST fails with "CORS error"
+- /api/debug/submit-last currently returns {"count":0,"logs":[]} because POST never reaches the server.
+
+Goal:
+1) Fix CORS specifically for /api/proposals/submit so the iframe origin can POST successfully.
+2) Ensure OPTIONS preflight is correctly handled with proper Access-Control-* headers.
+3) Keep security: allow only a small allowlist of origins (at minimum the Hunt published origin above, and optionally localhost for dev).
+4) Add server-side logging for both OPTIONS and POST so we can confirm requests reach the server.
+5) Do NOT break existing routes.
+
+Implement:
+
+A) Add a small CORS middleware (do NOT rely on wildcard "*"). For requests to /api/proposals/submit:
+- If req.headers.origin is in ALLOWED_ORIGINS, set:
+  Access-Control-Allow-Origin: <origin>
+  Vary: Origin
+  Access-Control-Allow-Methods: GET,POST,OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With
+  Access-Control-Max-Age: 86400
+- If you use cookies/credentials anywhere, also set:
+  Access-Control-Allow-Credentials: true
+(If not needed, you can omit credentials, but do not set "*" with credentials.)
+
+B) Handle preflight:
+- app.options("/api/proposals/submit", ...) should respond with status 204 (or 200) and the same CORS headers above, and end immediately.
+
+C) Ensure the POST handler remains as the proxy/forwarder to ARISE_BASE_URL:
+- Forward body to `${ARISE_BASE_URL}/api/proposals/submit`
+- Pass through upstream status and json
+- On missing ARISE_BASE_URL, return 502 with a clear error JSON
+
+D) Logging:
+- For OPTIONS and POST, log:
+  method, path, origin, referer, correlationId
+- For POST also log:
+  content-length, top-level body keys (do not dump huge payloads), targetUrl, upstreamStatus
+
+E) Debug endpoint:
+- Keep /api/debug/submit-last returning last 50 attempts, but include also preflight entries (type: "preflight" vs "submit") OR at least log preflights to console.
+
+After changes:
+- Republish Hub.
+- Expected: In browser devtools, the POST to https://artemis-hub.replit.app/api/proposals/submit succeeds (no CORS error), and /api/debug/submit-last shows at least one entry.
+
+Please apply the minimal code changes (likely in server/routes.ts and server/index.ts or wherever Express app is created), and show exactly which files you edited.

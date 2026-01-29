@@ -75,11 +75,15 @@ export async function registerRoutes(
     const ARISE_BASE_URL = process.env.ARISE_BASE_URL;
     const targetUrl = ARISE_BASE_URL ? `${ARISE_BASE_URL}/api/proposals/submit` : '';
     
-    console.log(`[HUNT SUBMIT] correlationId=${correlationId}`);
-    console.log(`[HUNT SUBMIT] Origin: ${origin}`);
-    console.log(`[HUNT SUBMIT] Content-Length: ${contentLength} bytes`);
-    console.log(`[HUNT SUBMIT] Body keys: ${bodyKeys.join(', ')}`);
-    console.log(`[HUNT SUBMIT] Target URL: ${targetUrl}`);
+    const referer = req.headers.referer || 'none';
+    
+    console.log(`[HUNT SUBMIT] === POST /api/proposals/submit ===`);
+    console.log(`[HUNT SUBMIT] correlationId: ${correlationId}`);
+    console.log(`[HUNT SUBMIT] origin: ${origin}`);
+    console.log(`[HUNT SUBMIT] referer: ${referer}`);
+    console.log(`[HUNT SUBMIT] content-length: ${contentLength} bytes`);
+    console.log(`[HUNT SUBMIT] body keys: ${bodyKeys.join(', ')}`);
+    console.log(`[HUNT SUBMIT] targetUrl: ${targetUrl}`);
     
     const logEntry: SubmitLogEntry = {
       correlationId,
