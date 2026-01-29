@@ -30,6 +30,27 @@ interface SubmitLogEntry {
 const submitLogs: SubmitLogEntry[] = [];
 const MAX_SUBMIT_LOGS = 50;
 
+interface RequestLogEntry {
+  ts: string;
+  method: string;
+  path: string;
+  origin: string | null;
+  referer: string | null;
+  contentLength: string | null;
+  userAgent?: string;
+  note?: string;
+}
+
+const recentRequests: RequestLogEntry[] = [];
+const MAX_RECENT_REQUESTS = 200;
+
+function addRequestLog(entry: RequestLogEntry) {
+  recentRequests.push(entry);
+  if (recentRequests.length > MAX_RECENT_REQUESTS) {
+    recentRequests.shift();
+  }
+}
+
 function addSubmitLog(entry: SubmitLogEntry) {
   submitLogs.unshift(entry);
   if (submitLogs.length > MAX_SUBMIT_LOGS) {
@@ -201,6 +222,28 @@ export async function registerRoutes(
     
     next();
   });
+
+  // ========================================
+  // REQUEST LOGGING MIDDLEWARE - logs all requests to ring buffer
+  // ========================================
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Skip debug endpoints to reduce noise
+    if (req.path.startsWith('/api/debug/')) {
+      return next();
+    }
+    
+    addRequestLog({
+      ts: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      origin: req.headers.origin || null,
+      referer: req.headers.referer || null,
+      contentLength: req.headers['content-length'] || null,
+      userAgent: req.headers['user-agent'],
+    });
+    
+    next();
+  });
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({
@@ -223,6 +266,41 @@ export async function registerRoutes(
       ok: true,
       service: "hub",
       ts: new Date().toISOString(),
+    });
+  });
+
+  // Debug endpoint - environment info
+  app.get("/api/debug/env", (req, res) => {
+    res.json({
+      nodeEnv: process.env.NODE_ENV,
+      hasAriseBaseUrl: !!process.env.ARISE_BASE_URL,
+      service: "hub",
+    });
+  });
+
+  // Debug endpoint - recent requests ring buffer
+  app.get("/api/debug/requests", (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, MAX_RECENT_REQUESTS);
+    res.json({
+      count: recentRequests.length,
+      limit,
+      nodeEnv: process.env.NODE_ENV,
+      now: new Date().toISOString(),
+      logs: recentRequests.slice(-limit).reverse(),
+    });
+  });
+
+  // Debug endpoint - CORS behavior check
+  app.get("/api/debug/cors", (req, res) => {
+    const origin = req.headers.origin;
+    const referer = req.headers.referer;
+    const allowedOriginEcho = origin && isOriginAllowed(origin) ? origin : null;
+    
+    res.json({
+      ok: true,
+      origin: origin || null,
+      referer: referer || null,
+      allowedOriginEcho,
     });
   });
 
@@ -260,6 +338,17 @@ export async function registerRoutes(
     
     // Normalize payload for Arise (handles string payloads, various shapes)
     const { normalized, payloadWasString, isTestPayload } = normalizeProposalInput(req.body);
+    
+    // Add to request log with detailed note
+    addRequestLog({
+      ts: new Date().toISOString(),
+      method: 'POST',
+      path: '/api/proposals/submit',
+      origin: origin === 'unknown' ? null : origin,
+      referer: referer === 'none' ? null : referer,
+      contentLength: contentLength === 'unknown' ? null : String(contentLength),
+      note: `SUBMIT_HANDLER_ENTER | keys=[${receivedBodyKeys.join(',')}] | isTest=${isTestPayload}`,
+    });
     
     console.log(`[HUNT SUBMIT] === POST /api/proposals/submit ===`);
     console.log(`[HUNT SUBMIT] correlationId: ${correlationId}`);

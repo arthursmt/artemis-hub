@@ -1,0 +1,56 @@
+You are working on the artemis-hub Replit.
+
+Goal: make it impossible to “miss” whether requests are reaching the Hub (production), without relying on Replit console logs.
+
+Implement the following in the Hub backend (Express). Keep changes minimal and safe.
+
+1) Add an in-memory ring buffer `recentRequests` (max 200).
+   Each entry:
+   - ts ISO string
+   - method
+   - path
+   - origin header (or null)
+   - referer header (or null)
+   - contentLength header (or null)
+   - userAgent (optional)
+   - note (optional)
+
+2) Global middleware (first thing after app creation, before routes):
+   - On every request, push an entry into `recentRequests` with method/path/origin/referer/contentLength.
+   - If path starts with `/api/debug/` you may skip pushing to reduce noise.
+
+3) New endpoint:
+   GET /api/debug/requests?limit=50
+   Returns JSON: { count, limit, nodeEnv, now, logs: recentRequests.slice(-limit).reverse() }
+
+4) New endpoint:
+   GET /api/debug/cors
+   Returns JSON with:
+   - ok: true
+   - origin: request.headers.origin
+   - referer: request.headers.referer
+   - allowedOriginEcho: the value your CORS middleware would set for Access-Control-Allow-Origin
+
+   (Purpose: user can hit this from different origins and verify CORS behavior.)
+
+5) Ensure CORS middleware is configured to allow:
+   Origin: https://artemis-hunting--arthursmt89.replit.app
+   Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+   Headers: Content-Type, Authorization, X-Requested-With, X-Correlation-Id
+   Expose headers: X-Correlation-Id
+
+   IMPORTANT: apply CORS BEFORE defining /api/proposals/submit so that OPTIONS and POST both get correct headers.
+
+6) In /api/proposals/submit handler:
+   - Add a log entry into `recentRequests` with note: "SUBMIT_HANDLER_ENTER"
+   - Also record received body keys (Object.keys(req.body || {})) into note.
+   - Keep existing forwarding to Arise and submit-last mechanism.
+
+7) Add a small endpoint to verify we are looking at the production deployment:
+   GET /api/debug/env
+   Return { nodeEnv: process.env.NODE_ENV, hasAriseBaseUrl: !!process.env.ARISE_BASE_URL, service: "hub" }
+
+After implementing, republish. Provide a short checklist of URLs to test:
+- https://artemis-hub.replit.app/api/debug/env
+- https://artemis-hub.replit.app/api/debug/requests?limit=20
+- submit from https://artemis-hub.replit.app/hunt then refresh requests endpoint and show that POST /api/proposals/submit appeared.
