@@ -1,78 +1,65 @@
-# Environment Setup — Artemis E2E (Replit)
+# Artemis Hub — Environment Setup
 
-This doc standardizes the environment variables across the ecosystem so the E2E demo is predictable.
+This document describes the required environment variables (Replit Secrets) for `artemis-hub`.
 
----
+## 1) Where to set variables
 
-## Where to set env vars in Replit (click-by-click)
+In Replit:
+- Open the `artemis-hub` Replit
+- Go to **Secrets** (Environment Variables)
+- Add the variables listed below
 
-For each Replit project (Hunt, Gate, Arise):
-1. Open the project in Replit
-2. Click **Secrets** (lock icon 🔒)
-3. Click **New Secret**
-4. Add **Key** and **Value**
-5. Repeat for all required keys
-6. Restart the Repl (stop ▶ / run ▶)
+## 2) Required variables
 
----
+### GitHub (for pushing from Replit)
+- `GITHUB_USERNAME`
+- `GITHUB_TOKEN`
 
-## Shared conventions (recommended)
+Used by:
+- One-shot push command (Replit shell does not reliably prompt for credentials)
 
-- Prefer URLs with `https://` (Replit deployment URL)
-- Keep names consistent across repos
+### Service URLs (integration)
+These must point to the deployed apps/APIs:
 
----
+- `HUNT_URL`
+  - Example: `https://<hunt-replit-domain>`
+  - Used for: iframe embed (Hunt inside Hub)
 
-## Hunt (Field App) — required env vars
+- `GATE_URL`
+  - Example: `https://<gate-replit-domain>`
+  - Used for: iframe embed (Gate inside Hub)
 
-Set in **Hunt Replit → Secrets**:
+- `ARISE_URL`
+  - Example: `https://<arise-replit-domain>`
+  - Used for: Hub API forwarding to Arise
 
-- `ARISE_API_URL`
-  - Example: `https://<your-arise-repl>.replit.app`
-  - Used to submit proposals and fetch statuses
+## 3) Recommended variables
 
-Optional (if used in your codebase):
-- `APP_ENV` = `dev` or `prod`
+### CORS / Origins
+- `ALLOWED_ORIGINS`
+  - Comma-separated list of allowed origins
+  - Example: `https://<hub-domain>,https://<hunt-domain>,https://<gate-domain>`
 
----
+## 4) How to validate
 
-## Gate (Backoffice) — required env vars
+After setting Secrets and restarting the Hub, open:
 
-Set in **Gate Replit → Secrets**:
+- `/api/debug/env`
+  - Expected: shows which variables are present (should not print secrets)
+- `/api/debug/cors`
+  - Expected: shows allowed origins config
+- `/api/debug/requests`
+  - Expected: empty list initially, then logs requests after E2E actions
+- `/api/debug/submit-last`
+  - Expected: empty initially, then shows last submit payload after Hunt submit
 
-- `ARISE_API_URL`
-  - Example: `https://<your-arise-repl>.replit.app`
-  - Used to load inbox and submit decisions
+## 5) Common failures
 
-Optional:
-- `APP_ENV` = `dev` or `prod`
+- Hub loads, but iframe is blank
+  - Cause: `HUNT_URL` or `GATE_URL` incorrect, blocked, or not deployed
 
----
+- Submit fails with 4xx
+  - Cause: wrong `ARISE_URL` or Arise schema mismatch
 
-## Arise (Backend/API) — required env vars
-
-Set in **Arise Replit → Secrets**:
-
-- `SESSION_SECRET`
-  - Any long random string (keep private)
-
-If your backend uses DB persistence (only if applicable):
-- `DATABASE_URL`
-  - The DB connection string you’re using in that Repl
-
-Optional:
-- `APP_ENV` = `dev` or `prod`
-
----
-
-## Quick validation (what to check)
-
-In each Repl **Shell**:
-
-- Confirm the app boots:
-  - No crash loop in console
-- Confirm the frontend points to Arise:
-  - Hunt can submit without 500 errors
-  - Gate can load inbox without CORS errors
-
-If a request fails, inspect the request URL — it’s almost always `ARISE_API_URL` mismatch.
+- CORS errors in browser console
+  - Cause: missing/incorrect `ALLOWED_ORIGINS`
