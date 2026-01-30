@@ -21,15 +21,15 @@ Used by:
 ### Service URLs (integration)
 These must point to the deployed apps/APIs:
 
-- `HUNT_URL`
+- `VITE_HUNT_URL`
   - Example: `https://<hunt-replit-domain>`
   - Used for: iframe embed (Hunt inside Hub)
 
-- `GATE_URL`
+- `VITE_GATE_URL`
   - Example: `https://<gate-replit-domain>`
   - Used for: iframe embed (Gate inside Hub)
 
-- `ARISE_URL`
+- `ARISE_BASE_URL`
   - Example: `https://<arise-replit-domain>`
   - Used for: Hub API forwarding to Arise
 
@@ -56,10 +56,10 @@ After setting Secrets and restarting the Hub, open:
 ## 5) Common failures
 
 - Hub loads, but iframe is blank
-  - Cause: `HUNT_URL` or `GATE_URL` incorrect, blocked, or not deployed
+  - Cause: `VITE_HUNT_URL` or `VITE_GATE_URL` incorrect, blocked, or not deployed
 
 - Submit fails with 4xx
-  - Cause: wrong `ARISE_URL` or Arise schema mismatch
+  - Cause: wrong `ARISE_BASE_URL` or Arise schema mismatch
 
 - CORS errors in browser console
   - Cause: missing/incorrect `ALLOWED_ORIGINS`
