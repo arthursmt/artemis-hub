@@ -1,123 +1,117 @@
-# E2E Runbook — Artemis Demo (Hunt ➜ Arise ➜ Gate)
+# Artemis Hub — E2E Runbook (Hunt → Hub → Arise → Gate)
 
-This runbook is a **click-by-click** script to demonstrate the Artemis MVP end-to-end flow:
-**Hunt (field submission)** ➜ **Arise (API)** ➜ **Gate (review + activation)**.
+This document is the single step-by-step checklist to validate the end-to-end flow.
 
----
+## 0) Prerequisites
 
-## 0) Pre-flight Checklist (2 minutes)
+- Replit Secrets set in this repo:
+  - `GITHUB_USERNAME`
+  - `GITHUB_TOKEN`
+- Hub is running (Replit "Run" button or `npm run dev`).
+- Hunt and Gate are embedded by Hub via iframe.
+- Arise is reachable from Hub (via configured base URL/env).
 
-✅ You should have:
-- Replit deployments running for:
-  - Hunt
-  - Gate
-  - Arise
-- The env vars set (see `docs/env-setup.md`)
-- A clean browser session (optional but reduces caching issues)
+## 1) Start the Hub
 
----
+1. Open the Hub Replit.
+2. Click **Run**.
+3. Confirm the app is reachable in the Replit webview.
 
-## 1) Start services (Replit)
+Expected:
+- Hub loads a page that embeds Hunt and Gate.
+- No CORS errors in browser console.
 
-Open 3 tabs (Replit):
-1. **Arise** — ensure it is running (API up)
-2. **Gate** — ensure UI loads
-3. **Hunt** — ensure UI loads
+Common failures:
+- Hub fails to boot (missing env vars, wrong node version).
+- Blank iframe due to wrong embed URL or CSP restrictions.
 
-**Success criteria**
-- Arise responds (no server crash)
-- Gate loads inbox page
-- Hunt loads the proposal creation flow
+## 2) Smoke test the Hub debug endpoints
 
----
+Open these endpoints in a browser tab:
 
-## 2) Hunt — Create and submit a proposal
+- `/api/debug/env`
+- `/api/debug/cors`
+- `/api/debug/requests`
+- `/api/debug/submit-last`
 
-In **Hunt**:
-1. Create a new proposal/group
-2. Fill required customer/member fields
-3. Capture / attach evidence (if the UI supports it)
-4. Open contract screen
-5. Scroll + accept agreement
-6. Sign (as required by the flow)
-7. Submit proposal
+Expected:
+- `env` returns a sanitized view (no secrets printed).
+- `cors` returns allowed origins configuration (or summary).
+- `requests` returns a list (may be empty).
+- `submit-last` returns last submit payload (may be empty initially).
 
-**Expected result**
-- You see a “submitted” confirmation
-- You capture the **proposal ID** (or any visible identifier)
+Common failures:
+- 404: route not wired in Hub.
+- 500: server error; check Hub logs.
 
-> If there is no visible proposal ID, note the timestamp and proceed to Gate; Gate should show the newest item.
+## 3) Submit a proposal from Hunt via Hub
 
----
+From the embedded Hunt UI:
 
-## 3) Arise — Confirm the submission landed
+1. Create a group.
+2. Add members.
+3. Submit proposal.
 
-In **Arise** (API verification):
-- Confirm proposal exists via API endpoint (depending on current implementation):
-  - `GET /api/proposals`
-  - `GET /api/proposals/:id`
+The Hunt must send:
+- `POST /api/proposals/submit` (to Hub)
 
-**Expected result**
-- Proposal appears in list
-- Status reflects “submitted” (or equivalent)
+Expected:
+- Hub returns `201 Created` (or equivalent success).
+- The request appears in `/api/debug/requests`.
+- `/api/debug/submit-last` shows the last received submit payload.
 
----
+Common failures:
+- 400: payload invalid or missing required fields.
+- 415: content-type not set to `application/json`.
+- No request logged: Hunt is calling the wrong base URL.
 
-## 4) Gate — Review and decide
+## 4) Validate Hub → Arise forwarding
 
-In **Gate**:
-1. Open Inbox
-2. Find the newest proposal (or match by ID)
-3. Open proposal details / preview
-4. Review evidence + contract section
-5. Use Decision Panel:
-   - Approve **or** Reject
-6. Submit decision
+Expected behavior:
+- Hub forwards the normalized payload to Arise `POST /api/proposals/submit`
+- Arise accepts both formats:
+  A) `{ groupId, members, ... }`
+  B) `{ proposalId, payload: { groupId, members, ... } }`
+- Arise validates the normalized body and persists it.
 
-**Expected result**
-- Proposal status updates in the UI
-- Audit trail reflects the decision (if implemented)
-- Contract becomes “active” after approval (or “rejected” after reject)
+Expected:
+- Hub response stays success.
+- Arise logs show normalized validation step.
+- A new proposal is persisted and can be fetched by Gate.
 
----
+Common failures:
+- 400 from Arise: schema mismatch or normalization not applied.
+- Network error: wrong Arise base URL from Hub env.
 
-## 5) Arise — Confirm decision & activation
+## 5) Confirm proposal appears in Gate
 
-In **Arise**:
-- Confirm status transition via API:
-  - `GET /api/proposals/:id`
-  - (optional) `GET /api/contracts/:id`
+From embedded Gate UI:
 
-**Expected result**
-- Proposal now reflects reviewer decision
-- If approved: contract is active (or equivalent state)
+1. Open inbox/list.
+2. Confirm the newly submitted proposal appears.
 
----
+Expected:
+- Proposal card/list item appears.
+- Details render without missing fields.
 
-## 6) Demo Summary (what you say to a reviewer)
+Common failures:
+- Gate points to wrong backend base URL.
+- Data shape mismatch between Arise response and Gate UI.
 
-**What this proves:**
-- Field submission workflow (Hunt)
-- Central backend validation + persistence (Arise)
-- Backoffice review + decision (Gate)
-- Full status transition across the system (E2E)
+## 6) Debug checklist (when something fails)
 
----
+1. Confirm request reaches Hub:
+   - `/api/debug/requests`
+   - `/api/debug/submit-last`
+2. Confirm Hub env/cors:
+   - `/api/debug/env`
+   - `/api/debug/cors`
+3. Check browser Network tab:
+   - request URL, method, status
+   - request headers: Origin, Content-Type
+4. Check Hub logs (server console)
+5. Check Arise logs (server console)
 
-## Troubleshooting
-
-### Gate inbox is empty
-- Arise not running, wrong API URL, or env var mismatch (see `docs/env-setup.md`)
-
-### Submission fails in Hunt
-- Arise URL not configured
-- CORS / route mismatch
-- Missing required fields (form validation)
-
-### Decision doesn’t persist
-- Gate decision endpoint mismatch vs Arise
-- Env var mismatch
-- API contract changed but not reflected in Gate
-
-Log what failed + screenshot the error; fix via Arise contract alignment.
+Rule:
+- Collect evidence first, then change code.
 
