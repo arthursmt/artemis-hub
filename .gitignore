@@ -29,3 +29,6 @@ Thumbs.db
 # never commit git metadata
 .git_old/
 .git/
+
+# Local git safety backups (Replit)
+_git_backup/
