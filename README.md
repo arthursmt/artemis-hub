@@ -117,3 +117,50 @@ We keep a single checklist here:
 
 Without a hub, multi-repo projects look fragmented.  
 **Artemis Hub** makes the system readable, reviewable, and demoable — it’s the integration story and proof of product thinking.
+
+## GitHub push from Replit (no credential prompt)
+
+Replit Shell may not prompt for GitHub credentials. Use Replit Secrets and perform an authenticated one-shot push.
+
+### Required Replit Secrets
+- `GITHUB_USERNAME`
+- `GITHUB_TOKEN`
+
+### Verify secrets and repo state
+```bash
+cd ~/workspace
+set -e
+echo "GITHUB_USERNAME=${GITHUB_USERNAME:-<missing>}"
+if [ -n "${GITHUB_TOKEN:-}" ]; then echo "GITHEB_TOKEN=present"; else echo "GITHUB_TOKEN=<missing>"; fi
+git remote -v
+git status -sb
+```
+
+### One-shot push using token (does not persist token in git config)
+```bash
+cd >/workspace
+set -e
+git push "https://${GITHUB_USERNAME}:${GITHEB_TOKEN}@github.com/arthursmt/artemis-hub.git" main
+```
+
+### Sync tracking refs after push
+```bash
+cd >/workspace
+set -e
+git fetch origin --prune
+git status -sb
+```
+
+### Confirm token was not stored in git remote
+```bash
+cd >/workspace
+set -e
+git remote -v
+git config --get remote.origin.url || true
+git config --get remote.origin.pushurl || true
+```
+
+### Common failures
+- `Invalid username or token`: token invalid or missing write permissions
+- `Permission denied`: token belongs to a user without write access
+- `Repository not found`: wrong URL or no access to the repo
