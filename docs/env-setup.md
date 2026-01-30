@@ -33,12 +33,13 @@ These must point to the deployed apps/APIs:
   - Example: `https://<arise-replit-domain>`
   - Used for: Hub API forwarding to Arise
 
-## 3) Recommended variables
+## 3) CORS and Origins
 
-### CORS / Origins
-- `ALLOWED_ORIGINS`
-  - Comma-separated list of allowed origins
-  - Example: `https://<hub-domain>,https://<hunt-domain>,https://<gate-domain>`
+CORS allowlist is currently hardcoded in the Hub server code:
+- `server/index.ts` (ALLOWED_ORIGINS)
+- `server/routes.ts` (CORS_ALLOWED_ORIGINS)
+
+To allow a new origin (new Replit domain), update both lists and redeploy.
 
 ## 4) How to validate
 
@@ -47,7 +48,7 @@ After setting Secrets and restarting the Hub, open:
 - `/api/debug/env`
   - Expected: shows which variables are present (should not print secrets)
 - `/api/debug/cors`
-  - Expected: shows allowed origins config
+  - Expected: returns whether the current request origin would be allowed (via `allowedOriginEcho`)
 - `/api/debug/requests`
   - Expected: empty list initially, then logs requests after E2E actions
 - `/api/debug/submit-last`
